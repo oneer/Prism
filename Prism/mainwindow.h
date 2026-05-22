@@ -5,6 +5,8 @@
 #include <QImage>
 #include <QString>
 
+#include "previewprocessor.h"
+
 class QLabel;
 class QListWidget;
 class QListWidgetItem;
@@ -66,9 +68,8 @@ private:
     QString currentImageName;
     QString currentImagePath;
     QString currentImageFormat;
-    double currentExposureEv = 0.0;
-    double currentRedGain = 1.0;
-    double currentBlueGain = 1.0;
+    PreviewParams previewParams;
+    PreviewProcessor previewProcessor;
     bool fitPreviewToWindowEnabled = true;
 };
 #endif // MAINWINDOW_H

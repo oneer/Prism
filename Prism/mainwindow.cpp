@@ -275,10 +275,12 @@ void MainWindow::exportPreview()
         return;
     }
 
+    const PipelineStage *stage = stageList ? pipelineModel.stageAt(stageList->currentRow()) : nullptr;
+    const QString stageId = stage ? stage->id : QString("preview");
     const QString filePath = QFileDialog::getSaveFileName(
         this,
         "Export Preview",
-        currentImageName.isEmpty() ? "preview.png" : QFileInfo(currentImageName).completeBaseName() + "_preview.png",
+        currentImageName.isEmpty() ? stageId + ".png" : QFileInfo(currentImageName).completeBaseName() + "_" + stageId + ".png",
         "PNG image (*.png);;JPEG image (*.jpg *.jpeg)");
 
     if (filePath.isEmpty()) {
@@ -292,7 +294,8 @@ void MainWindow::exportPreview()
         return;
     }
 
-    appendLog("Exported preview: " + filePath);
+    const QString stageName = stage ? stage->displayName : QString("Preview");
+    appendLog("Exported " + stageName + ": " + filePath);
     statusBar()->showMessage("Preview exported");
 }
 

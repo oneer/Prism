@@ -3,15 +3,21 @@
 
 #include <QAction>
 #include <QDockWidget>
+#include <QFileDialog>
+#include <QFileInfo>
 #include <QFormLayout>
 #include <QFrame>
 #include <QGroupBox>
+#include <QImageReader>
 #include <QLabel>
 #include <QListWidget>
 #include <QMenu>
 #include <QMenuBar>
+#include <QMessageBox>
 #include <QPlainTextEdit>
+#include <QPixmap>
 #include <QPushButton>
+#include <QResizeEvent>
 #include <QSlider>
 #include <QStatusBar>
 #include <QTabWidget>
@@ -30,6 +36,12 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
+void MainWindow::resizeEvent(QResizeEvent *event)
+{
+    QMainWindow::resizeEvent(event);
+    updatePreview();
+}
+
 void MainWindow::setupWorkbenchUi()
 {
     setWindowTitle("Prism - Soft ISP Workbench");
@@ -40,8 +52,8 @@ void MainWindow::setupWorkbenchUi()
     previewFrame->setMinimumSize(640, 420);
 
     auto *previewLayout = new QVBoxLayout(previewFrame);
-    auto *stageLabel = new QLabel("No RAW file loaded", previewFrame);
-    auto *previewLabel = new QLabel("Image Preview", previewFrame);
+    stageLabel = new QLabel("No image loaded", previewFrame);
+    previewLabel = new QLabel("Image Preview", previewFrame);
     previewLabel->setAlignment(Qt::AlignCenter);
     previewLabel->setMinimumHeight(360);
     previewLabel->setStyleSheet("QLabel { background: #202124; color: #d0d0d0; border: 1px solid #3a3a3a; }");
@@ -61,7 +73,7 @@ void MainWindow::setupWorkbenchUi()
 void MainWindow::setupMenus()
 {
     auto *fileMenu = menuBar()->addMenu("&File");
-    fileMenu->addAction("Open RAW...");
+    fileMenu->addAction("Open Image...", this, &MainWindow::openImage);
     fileMenu->addAction("Export Preview...");
     fileMenu->addSeparator();
     fileMenu->addAction("Exit", this, &QWidget::close);
@@ -135,11 +147,71 @@ void MainWindow::setupBottomPanel()
     tabs->addTab(new QLabel("Histogram placeholder", tabs), "Histogram");
     tabs->addTab(new QLabel("Metadata placeholder", tabs), "Metadata");
 
-    auto *logView = new QPlainTextEdit(tabs);
+    logView = new QPlainTextEdit(tabs);
     logView->setReadOnly(true);
     logView->setPlainText("Prism workbench initialized.");
     tabs->addTab(logView, "Log");
 
     dock->setWidget(tabs);
     addDockWidget(Qt::BottomDockWidgetArea, dock);
+}
+
+void MainWindow::openImage()
+{
+    const QString filePath = QFileDialog::getOpenFileName(
+        this,
+        "Open Image",
+        QString(),
+        "Images (*.png *.jpg *.jpeg *.bmp *.tif *.tiff);;All files (*.*)");
+
+    if (filePath.isEmpty()) {
+        return;
+    }
+
+    QImageReader reader(filePath);
+    reader.setAutoTransform(true);
+
+    QImage image = reader.read();
+    if (image.isNull()) {
+        QMessageBox::warning(this, "Open Image", "Could not open image:\n" + reader.errorString());
+        appendLog("Failed to open image: " + filePath);
+        return;
+    }
+
+    currentImage = image;
+    stageLabel->setText(QFileInfo(filePath).fileName());
+    updatePreview();
+
+    const QString message = QString("Loaded %1 (%2 x %3)")
+                                .arg(filePath)
+                                .arg(currentImage.width())
+                                .arg(currentImage.height());
+    appendLog(message);
+    statusBar()->showMessage("Image loaded");
+}
+
+void MainWindow::updatePreview()
+{
+    if (!previewLabel || currentImage.isNull()) {
+        return;
+    }
+
+    const QSize targetSize = previewLabel->contentsRect().size();
+    if (targetSize.isEmpty()) {
+        return;
+    }
+
+    const QPixmap pixmap = QPixmap::fromImage(currentImage).scaled(
+        targetSize,
+        Qt::KeepAspectRatio,
+        Qt::SmoothTransformation);
+
+    previewLabel->setPixmap(pixmap);
+}
+
+void MainWindow::appendLog(const QString &message)
+{
+    if (logView) {
+        logView->appendPlainText(message);
+    }
 }

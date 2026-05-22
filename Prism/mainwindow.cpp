@@ -9,6 +9,7 @@
 #include <QFrame>
 #include <QGroupBox>
 #include <QImageReader>
+#include <QKeySequence>
 #include <QLabel>
 #include <QListWidget>
 #include <QMenu>
@@ -83,17 +84,32 @@ void MainWindow::setupWorkbenchUi()
 void MainWindow::setupMenus()
 {
     auto *fileMenu = menuBar()->addMenu("&File");
-    fileMenu->addAction("Open Image...", this, &MainWindow::openImage);
-    fileMenu->addAction("Export Preview...", this, &MainWindow::exportPreview);
+    auto *openAction = fileMenu->addAction("Open Image...", this, &MainWindow::openImage);
+    openAction->setShortcut(QKeySequence::Open);
+
+    auto *exportAction = fileMenu->addAction("Export Preview...", this, &MainWindow::exportPreview);
+    exportAction->setShortcut(QKeySequence("Ctrl+E"));
+
     fileMenu->addSeparator();
-    fileMenu->addAction("Exit", this, &QWidget::close);
+    auto *exitAction = fileMenu->addAction("Exit", this, &QWidget::close);
+    exitAction->setShortcut(QKeySequence::Quit);
 
     auto *viewMenu = menuBar()->addMenu("&View");
-    viewMenu->addAction("Fit to Window", this, &MainWindow::fitPreviewToWindow);
-    viewMenu->addAction("Actual Size", this, &MainWindow::showPreviewActualSize);
+    auto *fitAction = viewMenu->addAction("Fit to Window", this, &MainWindow::fitPreviewToWindow);
+    fitAction->setShortcut(QKeySequence("Ctrl+0"));
+
+    auto *actualSizeAction = viewMenu->addAction("Actual Size", this, &MainWindow::showPreviewActualSize);
+    actualSizeAction->setShortcut(QKeySequence("Ctrl+1"));
 
     auto *helpMenu = menuBar()->addMenu("&Help");
-    helpMenu->addAction("About Prism");
+    helpMenu->addAction("About Prism", this, [this]() {
+        QMessageBox::about(
+            this,
+            "About Prism",
+            "Prism\n\n"
+            "A Qt Widgets workbench for learning and debugging image pipeline stages.\n\n"
+            "Current MVP supports image preview, stage selection, white balance, exposure, histogram, metadata, and preview export.");
+    });
 }
 
 void MainWindow::setupStageList()

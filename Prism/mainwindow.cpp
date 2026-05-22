@@ -134,27 +134,30 @@ void MainWindow::setupParameterPanel()
     auto *panel = new QWidget(dock);
     auto *layout = new QVBoxLayout(panel);
 
-    auto *whiteBalance = new QGroupBox("White Balance", panel);
-    auto *whiteBalanceLayout = new QFormLayout(whiteBalance);
-    redGainSlider = new QSlider(Qt::Horizontal, whiteBalance);
+    stageDescriptionLabel = new QLabel(panel);
+    stageDescriptionLabel->setWordWrap(true);
+
+    whiteBalanceGroup = new QGroupBox("White Balance", panel);
+    auto *whiteBalanceLayout = new QFormLayout(whiteBalanceGroup);
+    redGainSlider = new QSlider(Qt::Horizontal, whiteBalanceGroup);
     redGainSlider->setRange(50, 250);
     redGainSlider->setValue(100);
-    blueGainSlider = new QSlider(Qt::Horizontal, whiteBalance);
+    blueGainSlider = new QSlider(Qt::Horizontal, whiteBalanceGroup);
     blueGainSlider->setRange(50, 250);
     blueGainSlider->setValue(100);
-    redGainValueLabel = new QLabel("1.00x", whiteBalance);
-    blueGainValueLabel = new QLabel("1.00x", whiteBalance);
+    redGainValueLabel = new QLabel("1.00x", whiteBalanceGroup);
+    blueGainValueLabel = new QLabel("1.00x", whiteBalanceGroup);
     whiteBalanceLayout->addRow("Red gain", redGainSlider);
     whiteBalanceLayout->addRow("Red value", redGainValueLabel);
     whiteBalanceLayout->addRow("Blue gain", blueGainSlider);
     whiteBalanceLayout->addRow("Blue value", blueGainValueLabel);
 
-    auto *exposure = new QGroupBox("Exposure", panel);
-    auto *exposureLayout = new QFormLayout(exposure);
-    exposureSlider = new QSlider(Qt::Horizontal, exposure);
+    exposureGroup = new QGroupBox("Exposure", panel);
+    auto *exposureLayout = new QFormLayout(exposureGroup);
+    exposureSlider = new QSlider(Qt::Horizontal, exposureGroup);
     exposureSlider->setRange(-200, 200);
     exposureSlider->setValue(0);
-    exposureValueLabel = new QLabel("0.00 EV", exposure);
+    exposureValueLabel = new QLabel("0.00 EV", exposureGroup);
     exposureLayout->addRow("EV", exposureSlider);
     exposureLayout->addRow("Value", exposureValueLabel);
 
@@ -189,14 +192,16 @@ void MainWindow::setupParameterPanel()
     });
     connect(resetButton, &QPushButton::clicked, this, &MainWindow::resetPreviewParameters);
 
-    layout->addWidget(whiteBalance);
-    layout->addWidget(exposure);
+    layout->addWidget(stageDescriptionLabel);
+    layout->addWidget(whiteBalanceGroup);
+    layout->addWidget(exposureGroup);
     layout->addStretch();
     layout->addWidget(resetButton);
     layout->addWidget(applyButton);
 
     dock->setWidget(panel);
     addDockWidget(Qt::RightDockWidgetArea, dock);
+    updateStageControls();
 }
 
 void MainWindow::setupBottomPanel()
@@ -339,9 +344,26 @@ void MainWindow::selectStage(QListWidgetItem *item)
 
     stageLabel->setText(imageName + " - " + stageName);
     statusBar()->showMessage("Selected " + stageName);
+    updateStageControls();
     updatePreview();
     updateMetadata();
     appendLog("Selected stage: " + stageName);
+}
+
+void MainWindow::updateStageControls()
+{
+    const int stageIndex = stageList ? stageList->currentRow() : 0;
+    const PipelineStage *stage = pipelineModel.stageAt(stageIndex);
+
+    if (stageDescriptionLabel) {
+        stageDescriptionLabel->setText(stage ? stage->description : QString());
+    }
+    if (whiteBalanceGroup) {
+        whiteBalanceGroup->setEnabled(stageIndex >= 4);
+    }
+    if (exposureGroup) {
+        exposureGroup->setEnabled(stageIndex >= 6);
+    }
 }
 
 void MainWindow::updatePreview()

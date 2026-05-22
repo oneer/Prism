@@ -13,6 +13,7 @@ class QLabel;
 class QListWidget;
 class QListWidgetItem;
 class QPlainTextEdit;
+class QGroupBox;
 class QResizeEvent;
 class QScrollArea;
 class QSlider;
@@ -46,6 +47,7 @@ private:
     void fitPreviewToWindow();
     void showPreviewActualSize();
     void selectStage(QListWidgetItem *item);
+    void updateStageControls();
     void updatePreview();
     void updateHistogram(const QImage &previewImage);
     void updateMetadata();
@@ -60,6 +62,9 @@ private:
     QLabel *exposureValueLabel = nullptr;
     QLabel *redGainValueLabel = nullptr;
     QLabel *blueGainValueLabel = nullptr;
+    QLabel *stageDescriptionLabel = nullptr;
+    QGroupBox *whiteBalanceGroup = nullptr;
+    QGroupBox *exposureGroup = nullptr;
     QPlainTextEdit *metadataView = nullptr;
     QPlainTextEdit *logView = nullptr;
     QScrollArea *previewScrollArea = nullptr;

@@ -396,6 +396,8 @@ void MainWindow::updateMetadata()
     const int stageIndex = stageList ? stageList->currentRow() : 0;
     const QString whiteBalanceState = stageIndex >= 4 ? "Applied" : "Pending";
     const QString exposureState = stageIndex >= 6 ? "Applied" : "Pending";
+    const QString toneMappingState = stageIndex >= 7 ? "Applied" : "Pending";
+    const QString gammaState = stageIndex >= 8 ? "Applied" : "Pending";
     const double megapixels = currentImage.width() * currentImage.height() / 1000000.0;
     const double memoryMiB = currentImage.sizeInBytes() / 1024.0 / 1024.0;
 
@@ -416,7 +418,9 @@ void MainWindow::updateMetadata()
         "  Blue gain: %12x\n"
         "  Exposure EV: %13\n"
         "  White balance: %14\n"
-        "  Exposure: %15\n")
+        "  Exposure: %15\n"
+        "  Tone mapping: %16\n"
+        "  Gamma: %17\n")
                              .arg(currentImageName)
                              .arg(currentImagePath)
                              .arg(currentImageFormat.isEmpty() ? "Unknown" : currentImageFormat)
@@ -431,7 +435,9 @@ void MainWindow::updateMetadata()
                              .arg(previewParams.blueGain, 0, 'f', 2)
                              .arg(previewParams.exposureEv, 0, 'f', 2)
                              .arg(whiteBalanceState)
-                             .arg(exposureState);
+                             .arg(exposureState)
+                             .arg(toneMappingState)
+                             .arg(gammaState);
 
     metadataView->setPlainText(text);
 }

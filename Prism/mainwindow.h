@@ -10,6 +10,7 @@ class QListWidget;
 class QListWidgetItem;
 class QPlainTextEdit;
 class QResizeEvent;
+class QSlider;
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -37,14 +38,18 @@ private:
     void openImage();
     void selectStage(QListWidgetItem *item);
     void updatePreview();
+    QImage buildPreviewImage() const;
     void appendLog(const QString &message);
 
     Ui::MainWindow *ui;
     QListWidget *stageList = nullptr;
     QLabel *stageLabel = nullptr;
     QLabel *previewLabel = nullptr;
+    QLabel *exposureValueLabel = nullptr;
     QPlainTextEdit *logView = nullptr;
+    QSlider *exposureSlider = nullptr;
     QImage currentImage;
     QString currentImageName;
+    double currentExposureEv = 0.0;
 };
 #endif // MAINWINDOW_H

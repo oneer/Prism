@@ -23,6 +23,9 @@
 #include <QTabWidget>
 #include <QVBoxLayout>
 
+#include <algorithm>
+#include <cmath>
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
@@ -128,9 +131,23 @@ void MainWindow::setupParameterPanel()
 
     auto *exposure = new QGroupBox("Exposure", panel);
     auto *exposureLayout = new QFormLayout(exposure);
-    exposureLayout->addRow("EV", new QSlider(Qt::Horizontal, exposure));
+    exposureSlider = new QSlider(Qt::Horizontal, exposure);
+    exposureSlider->setRange(-200, 200);
+    exposureSlider->setValue(0);
+    exposureValueLabel = new QLabel("0.00 EV", exposure);
+    exposureLayout->addRow("EV", exposureSlider);
+    exposureLayout->addRow("Value", exposureValueLabel);
 
     auto *applyButton = new QPushButton("Apply Preview", panel);
+    connect(exposureSlider, &QSlider::valueChanged, this, [this](int value) {
+        currentExposureEv = value / 100.0;
+        exposureValueLabel->setText(QString::number(currentExposureEv, 'f', 2) + " EV");
+        updatePreview();
+        statusBar()->showMessage("Exposure preview: " + QString::number(currentExposureEv, 'f', 2) + " EV");
+    });
+    connect(applyButton, &QPushButton::clicked, this, [this]() {
+        appendLog("Applied exposure preview: " + QString::number(currentExposureEv, 'f', 2) + " EV");
+    });
 
     layout->addWidget(whiteBalance);
     layout->addWidget(exposure);
@@ -219,12 +236,35 @@ void MainWindow::updatePreview()
         return;
     }
 
-    const QPixmap pixmap = QPixmap::fromImage(currentImage).scaled(
+    const QPixmap pixmap = QPixmap::fromImage(buildPreviewImage()).scaled(
         targetSize,
         Qt::KeepAspectRatio,
         Qt::SmoothTransformation);
 
     previewLabel->setPixmap(pixmap);
+}
+
+QImage MainWindow::buildPreviewImage() const
+{
+    if (currentImage.isNull() || currentExposureEv == 0.0) {
+        return currentImage;
+    }
+
+    QImage preview = currentImage.convertToFormat(QImage::Format_ARGB32);
+    const double scale = std::pow(2.0, currentExposureEv);
+
+    for (int y = 0; y < preview.height(); ++y) {
+        auto *line = reinterpret_cast<QRgb *>(preview.scanLine(y));
+        for (int x = 0; x < preview.width(); ++x) {
+            const QRgb pixel = line[x];
+            const int red = std::clamp(static_cast<int>(qRed(pixel) * scale), 0, 255);
+            const int green = std::clamp(static_cast<int>(qGreen(pixel) * scale), 0, 255);
+            const int blue = std::clamp(static_cast<int>(qBlue(pixel) * scale), 0, 255);
+            line[x] = qRgba(red, green, blue, qAlpha(pixel));
+        }
+    }
+
+    return preview;
 }
 
 void MainWindow::appendLog(const QString &message)

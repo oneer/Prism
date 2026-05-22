@@ -19,6 +19,7 @@
 #include <QPixmap>
 #include <QPushButton>
 #include <QResizeEvent>
+#include <QScrollArea>
 #include <QSlider>
 #include <QStatusBar>
 #include <QTabWidget>
@@ -62,9 +63,13 @@ void MainWindow::setupWorkbenchUi()
     previewLabel->setAlignment(Qt::AlignCenter);
     previewLabel->setMinimumHeight(360);
     previewLabel->setStyleSheet("QLabel { background: #202124; color: #d0d0d0; border: 1px solid #3a3a3a; }");
+    previewScrollArea = new QScrollArea(previewFrame);
+    previewScrollArea->setWidget(previewLabel);
+    previewScrollArea->setWidgetResizable(true);
+    previewScrollArea->setAlignment(Qt::AlignCenter);
 
     previewLayout->addWidget(stageLabel);
-    previewLayout->addWidget(previewLabel, 1);
+    previewLayout->addWidget(previewScrollArea, 1);
     setCentralWidget(previewFrame);
 
     setupMenus();
@@ -84,8 +89,8 @@ void MainWindow::setupMenus()
     fileMenu->addAction("Exit", this, &QWidget::close);
 
     auto *viewMenu = menuBar()->addMenu("&View");
-    viewMenu->addAction("Fit to Window");
-    viewMenu->addAction("Actual Size");
+    viewMenu->addAction("Fit to Window", this, &MainWindow::fitPreviewToWindow);
+    viewMenu->addAction("Actual Size", this, &MainWindow::showPreviewActualSize);
 
     auto *helpMenu = menuBar()->addMenu("&Help");
     helpMenu->addAction("About Prism");
@@ -299,6 +304,26 @@ void MainWindow::resetPreviewParameters()
     statusBar()->showMessage("Preview parameters reset");
 }
 
+void MainWindow::fitPreviewToWindow()
+{
+    fitPreviewToWindowEnabled = true;
+    if (previewScrollArea) {
+        previewScrollArea->setWidgetResizable(true);
+    }
+    updatePreview();
+    statusBar()->showMessage("Fit preview to window");
+}
+
+void MainWindow::showPreviewActualSize()
+{
+    fitPreviewToWindowEnabled = false;
+    if (previewScrollArea) {
+        previewScrollArea->setWidgetResizable(false);
+    }
+    updatePreview();
+    statusBar()->showMessage("Preview at actual size");
+}
+
 void MainWindow::selectStage(QListWidgetItem *item)
 {
     if (!item) {
@@ -320,18 +345,24 @@ void MainWindow::updatePreview()
         return;
     }
 
-    const QSize targetSize = previewLabel->contentsRect().size();
-    if (targetSize.isEmpty()) {
+    const QSize targetSize = previewScrollArea
+                                 ? previewScrollArea->viewport()->contentsRect().size()
+                                 : previewLabel->contentsRect().size();
+    if (fitPreviewToWindowEnabled && targetSize.isEmpty()) {
         return;
     }
 
     const QImage previewImage = buildPreviewImage();
-    const QPixmap pixmap = QPixmap::fromImage(previewImage).scaled(
-        targetSize,
-        Qt::KeepAspectRatio,
-        Qt::SmoothTransformation);
+    QPixmap pixmap = QPixmap::fromImage(previewImage);
+    if (fitPreviewToWindowEnabled) {
+        pixmap = pixmap.scaled(
+            targetSize,
+            Qt::KeepAspectRatio,
+            Qt::SmoothTransformation);
+    }
 
     previewLabel->setPixmap(pixmap);
+    previewLabel->resize(pixmap.size());
     updateHistogram(previewImage);
 }
 

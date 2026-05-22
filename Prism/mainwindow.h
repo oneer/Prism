@@ -10,6 +10,7 @@ class QListWidget;
 class QListWidgetItem;
 class QPlainTextEdit;
 class QResizeEvent;
+class QScrollArea;
 class QSlider;
 
 QT_BEGIN_NAMESPACE
@@ -38,6 +39,8 @@ private:
     void openImage();
     void exportPreview();
     void resetPreviewParameters();
+    void fitPreviewToWindow();
+    void showPreviewActualSize();
     void selectStage(QListWidgetItem *item);
     void updatePreview();
     void updateHistogram(const QImage &previewImage);
@@ -55,6 +58,7 @@ private:
     QLabel *blueGainValueLabel = nullptr;
     QPlainTextEdit *metadataView = nullptr;
     QPlainTextEdit *logView = nullptr;
+    QScrollArea *previewScrollArea = nullptr;
     QSlider *exposureSlider = nullptr;
     QSlider *redGainSlider = nullptr;
     QSlider *blueGainSlider = nullptr;
@@ -65,5 +69,6 @@ private:
     double currentExposureEv = 0.0;
     double currentRedGain = 1.0;
     double currentBlueGain = 1.0;
+    bool fitPreviewToWindowEnabled = true;
 };
 #endif // MAINWINDOW_H

@@ -113,18 +113,10 @@ void MainWindow::setupStageList()
     dock->setObjectName("PipelineDock");
 
     stageList = new QListWidget(dock);
-    stageList->addItems({
-        "01 Raw Decode",
-        "02 Black Level",
-        "03 Normalize",
-        "04 Demosaic",
-        "05 White Balance",
-        "06 Color Matrix",
-        "07 Exposure",
-        "08 Tone Mapping",
-        "09 Gamma",
-        "10 Display Preview"
-    });
+    for (const PipelineStage &stage : pipelineModel.stages()) {
+        auto *item = new QListWidgetItem(stage.displayName, stageList);
+        item->setToolTip(stage.description);
+    }
     stageList->setCurrentRow(0);
     connect(stageList, &QListWidget::currentItemChanged, this, [this](QListWidgetItem *current) {
         selectStage(current);
@@ -341,7 +333,8 @@ void MainWindow::selectStage(QListWidgetItem *item)
         return;
     }
 
-    const QString stageName = item->text();
+    const PipelineStage *stage = pipelineModel.stageAt(stageList->row(item));
+    const QString stageName = stage ? stage->displayName : item->text();
     const QString imageName = currentImageName.isEmpty() ? QString("No image loaded") : currentImageName;
 
     stageLabel->setText(imageName + " - " + stageName);
@@ -397,8 +390,8 @@ void MainWindow::updateMetadata()
         return;
     }
 
-    const QListWidgetItem *stageItem = stageList ? stageList->currentItem() : nullptr;
-    const QString stageName = stageItem ? stageItem->text() : "None";
+    const PipelineStage *stage = stageList ? pipelineModel.stageAt(stageList->currentRow()) : nullptr;
+    const QString stageName = stage ? stage->displayName : "None";
     const double megapixels = currentImage.width() * currentImage.height() / 1000000.0;
     const double memoryMiB = currentImage.sizeInBytes() / 1024.0 / 1024.0;
 

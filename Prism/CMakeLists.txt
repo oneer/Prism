@@ -19,6 +19,8 @@ set(PROJECT_SOURCES
         mainwindow.cpp
         mainwindow.h
         mainwindow.ui
+        pipelinemodel.cpp
+        pipelinemodel.h
         previewprocessor.cpp
         previewprocessor.h
 )

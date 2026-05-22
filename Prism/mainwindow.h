@@ -6,6 +6,7 @@
 #include <QString>
 
 #include "histogramrenderer.h"
+#include "pipelinemodel.h"
 #include "previewprocessor.h"
 
 class QLabel;
@@ -70,6 +71,7 @@ private:
     QString currentImagePath;
     QString currentImageFormat;
     HistogramRenderer histogramRenderer;
+    PipelineModel pipelineModel;
     PreviewParams previewParams;
     PreviewProcessor previewProcessor;
     bool fitPreviewToWindowEnabled = true;

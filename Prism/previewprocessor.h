@@ -13,7 +13,7 @@ struct PreviewParams
 class PreviewProcessor
 {
 public:
-    QImage process(const QImage &source, const PreviewParams &params) const;
+    QImage process(const QImage &source, const PreviewParams &params, int stageIndex) const;
 };
 
 #endif // PREVIEWPROCESSOR_H

@@ -339,6 +339,7 @@ void MainWindow::selectStage(QListWidgetItem *item)
 
     stageLabel->setText(imageName + " - " + stageName);
     statusBar()->showMessage("Selected " + stageName);
+    updatePreview();
     updateMetadata();
     appendLog("Selected stage: " + stageName);
 }
@@ -392,6 +393,9 @@ void MainWindow::updateMetadata()
 
     const PipelineStage *stage = stageList ? pipelineModel.stageAt(stageList->currentRow()) : nullptr;
     const QString stageName = stage ? stage->displayName : "None";
+    const int stageIndex = stageList ? stageList->currentRow() : 0;
+    const QString whiteBalanceState = stageIndex >= 4 ? "Applied" : "Pending";
+    const QString exposureState = stageIndex >= 6 ? "Applied" : "Pending";
     const double megapixels = currentImage.width() * currentImage.height() / 1000000.0;
     const double memoryMiB = currentImage.sizeInBytes() / 1024.0 / 1024.0;
 
@@ -410,7 +414,9 @@ void MainWindow::updateMetadata()
         "  Active stage: %10\n"
         "  Red gain: %11x\n"
         "  Blue gain: %12x\n"
-        "  Exposure EV: %13\n")
+        "  Exposure EV: %13\n"
+        "  White balance: %14\n"
+        "  Exposure: %15\n")
                              .arg(currentImageName)
                              .arg(currentImagePath)
                              .arg(currentImageFormat.isEmpty() ? "Unknown" : currentImageFormat)
@@ -423,14 +429,17 @@ void MainWindow::updateMetadata()
                              .arg(stageName)
                              .arg(previewParams.redGain, 0, 'f', 2)
                              .arg(previewParams.blueGain, 0, 'f', 2)
-                             .arg(previewParams.exposureEv, 0, 'f', 2);
+                             .arg(previewParams.exposureEv, 0, 'f', 2)
+                             .arg(whiteBalanceState)
+                             .arg(exposureState);
 
     metadataView->setPlainText(text);
 }
 
 QImage MainWindow::buildPreviewImage() const
 {
-    return previewProcessor.process(currentImage, previewParams);
+    const int stageIndex = stageList ? stageList->currentRow() : 0;
+    return previewProcessor.process(currentImage, previewParams, stageIndex);
 }
 
 void MainWindow::appendLog(const QString &message)

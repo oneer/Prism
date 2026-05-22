@@ -91,7 +91,7 @@ void MainWindow::setupStageList()
     auto *dock = new QDockWidget("Pipeline", this);
     dock->setObjectName("PipelineDock");
 
-    auto *stageList = new QListWidget(dock);
+    stageList = new QListWidget(dock);
     stageList->addItems({
         "01 Raw Decode",
         "02 Black Level",
@@ -105,6 +105,9 @@ void MainWindow::setupStageList()
         "10 Display Preview"
     });
     stageList->setCurrentRow(0);
+    connect(stageList, &QListWidget::currentItemChanged, this, [this](QListWidgetItem *current) {
+        selectStage(current);
+    });
 
     dock->setWidget(stageList);
     addDockWidget(Qt::LeftDockWidgetArea, dock);
@@ -179,7 +182,8 @@ void MainWindow::openImage()
     }
 
     currentImage = image;
-    stageLabel->setText(QFileInfo(filePath).fileName());
+    currentImageName = QFileInfo(filePath).fileName();
+    stageLabel->setText(currentImageName);
     updatePreview();
 
     const QString message = QString("Loaded %1 (%2 x %3)")
@@ -188,6 +192,20 @@ void MainWindow::openImage()
                                 .arg(currentImage.height());
     appendLog(message);
     statusBar()->showMessage("Image loaded");
+}
+
+void MainWindow::selectStage(QListWidgetItem *item)
+{
+    if (!item) {
+        return;
+    }
+
+    const QString stageName = item->text();
+    const QString imageName = currentImageName.isEmpty() ? QString("No image loaded") : currentImageName;
+
+    stageLabel->setText(imageName + " - " + stageName);
+    statusBar()->showMessage("Selected " + stageName);
+    appendLog("Selected stage: " + stageName);
 }
 
 void MainWindow::updatePreview()

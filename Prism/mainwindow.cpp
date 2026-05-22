@@ -77,7 +77,7 @@ void MainWindow::setupMenus()
 {
     auto *fileMenu = menuBar()->addMenu("&File");
     fileMenu->addAction("Open Image...", this, &MainWindow::openImage);
-    fileMenu->addAction("Export Preview...");
+    fileMenu->addAction("Export Preview...", this, &MainWindow::exportPreview);
     fileMenu->addSeparator();
     fileMenu->addAction("Exit", this, &QWidget::close);
 
@@ -209,6 +209,34 @@ void MainWindow::openImage()
                                 .arg(currentImage.height());
     appendLog(message);
     statusBar()->showMessage("Image loaded");
+}
+
+void MainWindow::exportPreview()
+{
+    if (currentImage.isNull()) {
+        QMessageBox::information(this, "Export Preview", "Open an image before exporting.");
+        return;
+    }
+
+    const QString filePath = QFileDialog::getSaveFileName(
+        this,
+        "Export Preview",
+        currentImageName.isEmpty() ? "preview.png" : QFileInfo(currentImageName).completeBaseName() + "_preview.png",
+        "PNG image (*.png);;JPEG image (*.jpg *.jpeg)");
+
+    if (filePath.isEmpty()) {
+        return;
+    }
+
+    const QImage preview = buildPreviewImage();
+    if (!preview.save(filePath)) {
+        QMessageBox::warning(this, "Export Preview", "Could not save preview image.");
+        appendLog("Failed to export preview: " + filePath);
+        return;
+    }
+
+    appendLog("Exported preview: " + filePath);
+    statusBar()->showMessage("Preview exported");
 }
 
 void MainWindow::selectStage(QListWidgetItem *item)

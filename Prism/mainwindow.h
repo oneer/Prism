@@ -36,6 +36,7 @@ private:
     void setupParameterPanel();
     void setupBottomPanel();
     void openImage();
+    void exportPreview();
     void selectStage(QListWidgetItem *item);
     void updatePreview();
     QImage buildPreviewImage() const;

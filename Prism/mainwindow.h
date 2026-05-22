@@ -50,13 +50,19 @@ private:
     QLabel *previewLabel = nullptr;
     QLabel *histogramLabel = nullptr;
     QLabel *exposureValueLabel = nullptr;
+    QLabel *redGainValueLabel = nullptr;
+    QLabel *blueGainValueLabel = nullptr;
     QPlainTextEdit *metadataView = nullptr;
     QPlainTextEdit *logView = nullptr;
     QSlider *exposureSlider = nullptr;
+    QSlider *redGainSlider = nullptr;
+    QSlider *blueGainSlider = nullptr;
     QImage currentImage;
     QString currentImageName;
     QString currentImagePath;
     QString currentImageFormat;
     double currentExposureEv = 0.0;
+    double currentRedGain = 1.0;
+    double currentBlueGain = 1.0;
 };
 #endif // MAINWINDOW_H

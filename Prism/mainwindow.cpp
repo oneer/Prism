@@ -128,8 +128,18 @@ void MainWindow::setupParameterPanel()
 
     auto *whiteBalance = new QGroupBox("White Balance", panel);
     auto *whiteBalanceLayout = new QFormLayout(whiteBalance);
-    whiteBalanceLayout->addRow("Red gain", new QSlider(Qt::Horizontal, whiteBalance));
-    whiteBalanceLayout->addRow("Blue gain", new QSlider(Qt::Horizontal, whiteBalance));
+    redGainSlider = new QSlider(Qt::Horizontal, whiteBalance);
+    redGainSlider->setRange(50, 250);
+    redGainSlider->setValue(100);
+    blueGainSlider = new QSlider(Qt::Horizontal, whiteBalance);
+    blueGainSlider->setRange(50, 250);
+    blueGainSlider->setValue(100);
+    redGainValueLabel = new QLabel("1.00x", whiteBalance);
+    blueGainValueLabel = new QLabel("1.00x", whiteBalance);
+    whiteBalanceLayout->addRow("Red gain", redGainSlider);
+    whiteBalanceLayout->addRow("Red value", redGainValueLabel);
+    whiteBalanceLayout->addRow("Blue gain", blueGainSlider);
+    whiteBalanceLayout->addRow("Blue value", blueGainValueLabel);
 
     auto *exposure = new QGroupBox("Exposure", panel);
     auto *exposureLayout = new QFormLayout(exposure);
@@ -141,6 +151,20 @@ void MainWindow::setupParameterPanel()
     exposureLayout->addRow("Value", exposureValueLabel);
 
     auto *applyButton = new QPushButton("Apply Preview", panel);
+    connect(redGainSlider, &QSlider::valueChanged, this, [this](int value) {
+        currentRedGain = value / 100.0;
+        redGainValueLabel->setText(QString::number(currentRedGain, 'f', 2) + "x");
+        updatePreview();
+        updateMetadata();
+        statusBar()->showMessage("Red gain preview: " + QString::number(currentRedGain, 'f', 2) + "x");
+    });
+    connect(blueGainSlider, &QSlider::valueChanged, this, [this](int value) {
+        currentBlueGain = value / 100.0;
+        blueGainValueLabel->setText(QString::number(currentBlueGain, 'f', 2) + "x");
+        updatePreview();
+        updateMetadata();
+        statusBar()->showMessage("Blue gain preview: " + QString::number(currentBlueGain, 'f', 2) + "x");
+    });
     connect(exposureSlider, &QSlider::valueChanged, this, [this](int value) {
         currentExposureEv = value / 100.0;
         exposureValueLabel->setText(QString::number(currentExposureEv, 'f', 2) + " EV");
@@ -149,7 +173,10 @@ void MainWindow::setupParameterPanel()
         statusBar()->showMessage("Exposure preview: " + QString::number(currentExposureEv, 'f', 2) + " EV");
     });
     connect(applyButton, &QPushButton::clicked, this, [this]() {
-        appendLog("Applied exposure preview: " + QString::number(currentExposureEv, 'f', 2) + " EV");
+        appendLog(QString("Applied preview: red %1x, blue %2x, exposure %3 EV")
+                      .arg(currentRedGain, 0, 'f', 2)
+                      .arg(currentBlueGain, 0, 'f', 2)
+                      .arg(currentExposureEv, 0, 'f', 2));
     });
 
     layout->addWidget(whiteBalance);
@@ -386,7 +413,9 @@ void MainWindow::updateMetadata()
         "  Memory: %9 MiB\n\n"
         "Preview\n"
         "  Active stage: %10\n"
-        "  Exposure EV: %11\n")
+        "  Red gain: %11x\n"
+        "  Blue gain: %12x\n"
+        "  Exposure EV: %13\n")
                              .arg(currentImageName)
                              .arg(currentImagePath)
                              .arg(currentImageFormat.isEmpty() ? "Unknown" : currentImageFormat)
@@ -397,6 +426,8 @@ void MainWindow::updateMetadata()
                              .arg(currentImage.hasAlphaChannel() ? "Yes" : "No")
                              .arg(memoryMiB, 0, 'f', 2)
                              .arg(stageName)
+                             .arg(currentRedGain, 0, 'f', 2)
+                             .arg(currentBlueGain, 0, 'f', 2)
                              .arg(currentExposureEv, 0, 'f', 2);
 
     metadataView->setPlainText(text);
@@ -404,20 +435,21 @@ void MainWindow::updateMetadata()
 
 QImage MainWindow::buildPreviewImage() const
 {
-    if (currentImage.isNull() || currentExposureEv == 0.0) {
+    if (currentImage.isNull()
+        || (currentExposureEv == 0.0 && currentRedGain == 1.0 && currentBlueGain == 1.0)) {
         return currentImage;
     }
 
     QImage preview = currentImage.convertToFormat(QImage::Format_ARGB32);
-    const double scale = std::pow(2.0, currentExposureEv);
+    const double exposureScale = std::pow(2.0, currentExposureEv);
 
     for (int y = 0; y < preview.height(); ++y) {
         auto *line = reinterpret_cast<QRgb *>(preview.scanLine(y));
         for (int x = 0; x < preview.width(); ++x) {
             const QRgb pixel = line[x];
-            const int red = std::clamp(static_cast<int>(qRed(pixel) * scale), 0, 255);
-            const int green = std::clamp(static_cast<int>(qGreen(pixel) * scale), 0, 255);
-            const int blue = std::clamp(static_cast<int>(qBlue(pixel) * scale), 0, 255);
+            const int red = std::clamp(static_cast<int>(qRed(pixel) * currentRedGain * exposureScale), 0, 255);
+            const int green = std::clamp(static_cast<int>(qGreen(pixel) * exposureScale), 0, 255);
+            const int blue = std::clamp(static_cast<int>(qBlue(pixel) * currentBlueGain * exposureScale), 0, 255);
             line[x] = qRgba(red, green, blue, qAlpha(pixel));
         }
     }

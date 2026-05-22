@@ -14,6 +14,7 @@
 #include <QMenu>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QPainter>
 #include <QPlainTextEdit>
 #include <QPixmap>
 #include <QPushButton>
@@ -24,6 +25,7 @@
 #include <QVBoxLayout>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 
 MainWindow::MainWindow(QWidget *parent)
@@ -164,7 +166,11 @@ void MainWindow::setupBottomPanel()
     dock->setObjectName("InspectorDock");
 
     auto *tabs = new QTabWidget(dock);
-    tabs->addTab(new QLabel("Histogram placeholder", tabs), "Histogram");
+    histogramLabel = new QLabel("Open an image to view histogram", tabs);
+    histogramLabel->setAlignment(Qt::AlignCenter);
+    histogramLabel->setMinimumHeight(180);
+    histogramLabel->setStyleSheet("QLabel { background: #202124; color: #d0d0d0; border: 1px solid #3a3a3a; }");
+    tabs->addTab(histogramLabel, "Histogram");
     tabs->addTab(new QLabel("Metadata placeholder", tabs), "Metadata");
 
     logView = new QPlainTextEdit(tabs);
@@ -264,12 +270,82 @@ void MainWindow::updatePreview()
         return;
     }
 
-    const QPixmap pixmap = QPixmap::fromImage(buildPreviewImage()).scaled(
+    const QImage previewImage = buildPreviewImage();
+    const QPixmap pixmap = QPixmap::fromImage(previewImage).scaled(
         targetSize,
         Qt::KeepAspectRatio,
         Qt::SmoothTransformation);
 
     previewLabel->setPixmap(pixmap);
+    updateHistogram(previewImage);
+}
+
+void MainWindow::updateHistogram(const QImage &previewImage)
+{
+    if (!histogramLabel || previewImage.isNull()) {
+        return;
+    }
+
+    std::array<int, 256> redBins {};
+    std::array<int, 256> greenBins {};
+    std::array<int, 256> blueBins {};
+
+    const QImage image = previewImage.convertToFormat(QImage::Format_ARGB32);
+    const int sampleStep = std::max(1, image.width() * image.height() / 250000);
+
+    int sampleIndex = 0;
+    for (int y = 0; y < image.height(); ++y) {
+        const auto *line = reinterpret_cast<const QRgb *>(image.constScanLine(y));
+        for (int x = 0; x < image.width(); ++x) {
+            if ((sampleIndex++ % sampleStep) != 0) {
+                continue;
+            }
+
+            const QRgb pixel = line[x];
+            ++redBins[qRed(pixel)];
+            ++greenBins[qGreen(pixel)];
+            ++blueBins[qBlue(pixel)];
+        }
+    }
+
+    const int histogramWidth = 512;
+    const int histogramHeight = 180;
+    const int bottomPadding = 18;
+    const int graphHeight = histogramHeight - bottomPadding;
+    const int maxBin = std::max({
+        *std::max_element(redBins.begin(), redBins.end()),
+        *std::max_element(greenBins.begin(), greenBins.end()),
+        *std::max_element(blueBins.begin(), blueBins.end())
+    });
+
+    QPixmap histogram(histogramWidth, histogramHeight);
+    histogram.fill(QColor("#202124"));
+
+    QPainter painter(&histogram);
+    painter.setRenderHint(QPainter::Antialiasing, false);
+    painter.setPen(QColor("#3a3a3a"));
+    painter.drawLine(0, graphHeight, histogramWidth, graphHeight);
+
+    if (maxBin > 0) {
+        auto drawChannel = [&](const std::array<int, 256> &bins, const QColor &color) {
+            painter.setPen(color);
+            for (int i = 0; i < 256; ++i) {
+                const int x = i * 2;
+                const int height = static_cast<int>((static_cast<double>(bins[i]) / maxBin) * (graphHeight - 8));
+                painter.drawLine(x, graphHeight, x, graphHeight - height);
+                painter.drawLine(x + 1, graphHeight, x + 1, graphHeight - height);
+            }
+        };
+
+        drawChannel(redBins, QColor(255, 80, 80, 180));
+        drawChannel(greenBins, QColor(80, 220, 120, 180));
+        drawChannel(blueBins, QColor(90, 150, 255, 180));
+    }
+
+    painter.setPen(QColor("#d0d0d0"));
+    painter.drawText(8, histogramHeight - 5, "RGB histogram");
+
+    histogramLabel->setPixmap(histogram);
 }
 
 QImage MainWindow::buildPreviewImage() const

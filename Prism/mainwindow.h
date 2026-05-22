@@ -39,6 +39,7 @@ private:
     void exportPreview();
     void selectStage(QListWidgetItem *item);
     void updatePreview();
+    void updateHistogram(const QImage &previewImage);
     QImage buildPreviewImage() const;
     void appendLog(const QString &message);
 
@@ -46,6 +47,7 @@ private:
     QListWidget *stageList = nullptr;
     QLabel *stageLabel = nullptr;
     QLabel *previewLabel = nullptr;
+    QLabel *histogramLabel = nullptr;
     QLabel *exposureValueLabel = nullptr;
     QPlainTextEdit *logView = nullptr;
     QSlider *exposureSlider = nullptr;

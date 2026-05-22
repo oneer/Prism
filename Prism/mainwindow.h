@@ -37,6 +37,7 @@ private:
     void setupBottomPanel();
     void openImage();
     void exportPreview();
+    void resetPreviewParameters();
     void selectStage(QListWidgetItem *item);
     void updatePreview();
     void updateHistogram(const QImage &previewImage);

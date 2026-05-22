@@ -150,6 +150,7 @@ void MainWindow::setupParameterPanel()
     exposureLayout->addRow("EV", exposureSlider);
     exposureLayout->addRow("Value", exposureValueLabel);
 
+    auto *resetButton = new QPushButton("Reset Parameters", panel);
     auto *applyButton = new QPushButton("Apply Preview", panel);
     connect(redGainSlider, &QSlider::valueChanged, this, [this](int value) {
         currentRedGain = value / 100.0;
@@ -178,10 +179,12 @@ void MainWindow::setupParameterPanel()
                       .arg(currentBlueGain, 0, 'f', 2)
                       .arg(currentExposureEv, 0, 'f', 2));
     });
+    connect(resetButton, &QPushButton::clicked, this, &MainWindow::resetPreviewParameters);
 
     layout->addWidget(whiteBalance);
     layout->addWidget(exposure);
     layout->addStretch();
+    layout->addWidget(resetButton);
     layout->addWidget(applyButton);
 
     dock->setWidget(panel);
@@ -278,6 +281,22 @@ void MainWindow::exportPreview()
 
     appendLog("Exported preview: " + filePath);
     statusBar()->showMessage("Preview exported");
+}
+
+void MainWindow::resetPreviewParameters()
+{
+    if (redGainSlider) {
+        redGainSlider->setValue(100);
+    }
+    if (blueGainSlider) {
+        blueGainSlider->setValue(100);
+    }
+    if (exposureSlider) {
+        exposureSlider->setValue(0);
+    }
+
+    appendLog("Reset preview parameters");
+    statusBar()->showMessage("Preview parameters reset");
 }
 
 void MainWindow::selectStage(QListWidgetItem *item)

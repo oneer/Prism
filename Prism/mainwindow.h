@@ -5,6 +5,7 @@
 #include <QImage>
 #include <QString>
 
+#include "histogramrenderer.h"
 #include "previewprocessor.h"
 
 class QLabel;
@@ -68,6 +69,7 @@ private:
     QString currentImageName;
     QString currentImagePath;
     QString currentImageFormat;
+    HistogramRenderer histogramRenderer;
     PreviewParams previewParams;
     PreviewProcessor previewProcessor;
     bool fitPreviewToWindowEnabled = true;

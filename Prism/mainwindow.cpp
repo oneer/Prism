@@ -145,6 +145,7 @@ void MainWindow::setupParameterPanel()
         currentExposureEv = value / 100.0;
         exposureValueLabel->setText(QString::number(currentExposureEv, 'f', 2) + " EV");
         updatePreview();
+        updateMetadata();
         statusBar()->showMessage("Exposure preview: " + QString::number(currentExposureEv, 'f', 2) + " EV");
     });
     connect(applyButton, &QPushButton::clicked, this, [this]() {
@@ -171,7 +172,11 @@ void MainWindow::setupBottomPanel()
     histogramLabel->setMinimumHeight(180);
     histogramLabel->setStyleSheet("QLabel { background: #202124; color: #d0d0d0; border: 1px solid #3a3a3a; }");
     tabs->addTab(histogramLabel, "Histogram");
-    tabs->addTab(new QLabel("Metadata placeholder", tabs), "Metadata");
+
+    metadataView = new QPlainTextEdit(tabs);
+    metadataView->setReadOnly(true);
+    metadataView->setPlainText("Open an image to view metadata.");
+    tabs->addTab(metadataView, "Metadata");
 
     logView = new QPlainTextEdit(tabs);
     logView->setReadOnly(true);
@@ -206,8 +211,11 @@ void MainWindow::openImage()
 
     currentImage = image;
     currentImageName = QFileInfo(filePath).fileName();
+    currentImagePath = filePath;
+    currentImageFormat = QString::fromLatin1(reader.format()).toUpper();
     stageLabel->setText(currentImageName);
     updatePreview();
+    updateMetadata();
 
     const QString message = QString("Loaded %1 (%2 x %3)")
                                 .arg(filePath)
@@ -256,6 +264,7 @@ void MainWindow::selectStage(QListWidgetItem *item)
 
     stageLabel->setText(imageName + " - " + stageName);
     statusBar()->showMessage("Selected " + stageName);
+    updateMetadata();
     appendLog("Selected stage: " + stageName);
 }
 
@@ -346,6 +355,51 @@ void MainWindow::updateHistogram(const QImage &previewImage)
     painter.drawText(8, histogramHeight - 5, "RGB histogram");
 
     histogramLabel->setPixmap(histogram);
+}
+
+void MainWindow::updateMetadata()
+{
+    if (!metadataView) {
+        return;
+    }
+
+    if (currentImage.isNull()) {
+        metadataView->setPlainText("Open an image to view metadata.");
+        return;
+    }
+
+    const QListWidgetItem *stageItem = stageList ? stageList->currentItem() : nullptr;
+    const QString stageName = stageItem ? stageItem->text() : "None";
+    const double megapixels = currentImage.width() * currentImage.height() / 1000000.0;
+    const double memoryMiB = currentImage.sizeInBytes() / 1024.0 / 1024.0;
+
+    const QString text = QString(
+        "File\n"
+        "  Name: %1\n"
+        "  Path: %2\n"
+        "  Format: %3\n\n"
+        "Image\n"
+        "  Size: %4 x %5\n"
+        "  Megapixels: %6 MP\n"
+        "  Depth: %7 bits per pixel\n"
+        "  Has alpha: %8\n"
+        "  Memory: %9 MiB\n\n"
+        "Preview\n"
+        "  Active stage: %10\n"
+        "  Exposure EV: %11\n")
+                             .arg(currentImageName)
+                             .arg(currentImagePath)
+                             .arg(currentImageFormat.isEmpty() ? "Unknown" : currentImageFormat)
+                             .arg(currentImage.width())
+                             .arg(currentImage.height())
+                             .arg(megapixels, 0, 'f', 2)
+                             .arg(currentImage.depth())
+                             .arg(currentImage.hasAlphaChannel() ? "Yes" : "No")
+                             .arg(memoryMiB, 0, 'f', 2)
+                             .arg(stageName)
+                             .arg(currentExposureEv, 0, 'f', 2);
+
+    metadataView->setPlainText(text);
 }
 
 QImage MainWindow::buildPreviewImage() const

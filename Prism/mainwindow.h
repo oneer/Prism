@@ -40,6 +40,7 @@ private:
     void selectStage(QListWidgetItem *item);
     void updatePreview();
     void updateHistogram(const QImage &previewImage);
+    void updateMetadata();
     QImage buildPreviewImage() const;
     void appendLog(const QString &message);
 
@@ -49,10 +50,13 @@ private:
     QLabel *previewLabel = nullptr;
     QLabel *histogramLabel = nullptr;
     QLabel *exposureValueLabel = nullptr;
+    QPlainTextEdit *metadataView = nullptr;
     QPlainTextEdit *logView = nullptr;
     QSlider *exposureSlider = nullptr;
     QImage currentImage;
     QString currentImageName;
+    QString currentImagePath;
+    QString currentImageFormat;
     double currentExposureEv = 0.0;
 };
 #endif // MAINWINDOW_H

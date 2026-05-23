@@ -9,6 +9,9 @@ struct PipelineStage
     QString id;
     QString displayName;
     QString description;
+    QString inputDescription;
+    QString outputDescription;
+    QString implementationStatus;
 };
 
 class PipelineModel

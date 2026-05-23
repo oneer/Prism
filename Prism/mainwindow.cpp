@@ -512,7 +512,19 @@ void MainWindow::updateStageControls()
     const PipelineStage *stage = pipelineModel.stageAt(stageIndex);
 
     if (stageDescriptionLabel) {
-        stageDescriptionLabel->setText(stage ? stage->description : QString());
+        if (stage) {
+            stageDescriptionLabel->setText(QString(
+                                               "%1\n\n"
+                                               "Input: %2\n"
+                                               "Output: %3\n"
+                                               "Status: %4")
+                                               .arg(stage->description)
+                                               .arg(stage->inputDescription)
+                                               .arg(stage->outputDescription)
+                                               .arg(stage->implementationStatus));
+        } else {
+            stageDescriptionLabel->setText(QString());
+        }
     }
     if (whiteBalanceGroup) {
         whiteBalanceGroup->setEnabled(stageIndex >= 4);

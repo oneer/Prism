@@ -188,6 +188,8 @@ void MainWindow::setupParameterPanel()
 
     showOriginalCheckBox = new QCheckBox("Show Original", panel);
     splitCompareCheckBox = new QCheckBox("Split Compare", panel);
+    auto *loadPresetButton = new QPushButton("Load Preset", panel);
+    auto *savePresetButton = new QPushButton("Save Preset", panel);
     auto *resetButton = new QPushButton("Reset Parameters", panel);
     auto *applyButton = new QPushButton("Apply Preview", panel);
     connect(redGainSlider, &QSlider::valueChanged, this, [this](int value) {
@@ -230,6 +232,8 @@ void MainWindow::setupParameterPanel()
         statusBar()->showMessage(checked ? "Showing split compare" : "Showing single preview");
     });
     connect(resetButton, &QPushButton::clicked, this, &MainWindow::resetPreviewParameters);
+    connect(loadPresetButton, &QPushButton::clicked, this, &MainWindow::loadPreset);
+    connect(savePresetButton, &QPushButton::clicked, this, &MainWindow::savePreset);
 
     layout->addWidget(stageDescriptionLabel);
     layout->addWidget(showOriginalCheckBox);
@@ -237,6 +241,8 @@ void MainWindow::setupParameterPanel()
     layout->addWidget(whiteBalanceGroup);
     layout->addWidget(exposureGroup);
     layout->addStretch();
+    layout->addWidget(loadPresetButton);
+    layout->addWidget(savePresetButton);
     layout->addWidget(resetButton);
     layout->addWidget(applyButton);
 
@@ -398,6 +404,88 @@ void MainWindow::saveProject()
     file.write(QJsonDocument(project).toJson(QJsonDocument::Indented));
     appendLog("Saved project: " + filePath);
     statusBar()->showMessage("Project saved");
+}
+
+void MainWindow::loadPreset()
+{
+    const QString filePath = QFileDialog::getOpenFileName(
+        this,
+        "Load Preset",
+        QString(),
+        "Prism preset (*.json);;All files (*.*)");
+
+    if (filePath.isEmpty()) {
+        return;
+    }
+
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly)) {
+        QMessageBox::warning(this, "Load Preset", "Could not open preset file.");
+        appendLog("Failed to load preset: " + filePath);
+        return;
+    }
+
+    QJsonParseError parseError;
+    const QJsonDocument document = QJsonDocument::fromJson(file.readAll(), &parseError);
+    if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
+        QMessageBox::warning(this, "Load Preset", "Preset file is not valid JSON.");
+        appendLog("Invalid preset file: " + filePath);
+        return;
+    }
+
+    const QJsonObject preset = document.object();
+    if (redGainSlider) {
+        redGainSlider->setValue(qRound(preset.value("redGain").toDouble(1.0) * 100.0));
+    }
+    if (blueGainSlider) {
+        blueGainSlider->setValue(qRound(preset.value("blueGain").toDouble(1.0) * 100.0));
+    }
+    if (exposureSlider) {
+        exposureSlider->setValue(qRound(preset.value("exposureEv").toDouble(0.0) * 100.0));
+    }
+    if (showOriginalCheckBox) {
+        showOriginalCheckBox->setChecked(preset.value("showOriginal").toBool(false));
+    }
+    if (splitCompareCheckBox) {
+        splitCompareCheckBox->setChecked(preset.value("splitCompare").toBool(false));
+    }
+
+    updatePreview();
+    updateMetadata();
+    appendLog("Loaded preset: " + filePath);
+    statusBar()->showMessage("Preset loaded");
+}
+
+void MainWindow::savePreset()
+{
+    const QString filePath = QFileDialog::getSaveFileName(
+        this,
+        "Save Preset",
+        "preview-preset.json",
+        "Prism preset (*.json);;All files (*.*)");
+
+    if (filePath.isEmpty()) {
+        return;
+    }
+
+    QJsonObject preset;
+    preset["version"] = 1;
+    preset["redGain"] = previewParams.redGain;
+    preset["blueGain"] = previewParams.blueGain;
+    preset["exposureEv"] = previewParams.exposureEv;
+    preset["showOriginal"] = showOriginalPreview;
+    preset["splitCompare"] = splitComparePreview;
+
+    QFile file(filePath);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        QMessageBox::warning(this, "Save Preset", "Could not save preset file.");
+        appendLog("Failed to save preset: " + filePath);
+        return;
+    }
+
+    file.write(QJsonDocument(preset).toJson(QJsonDocument::Indented));
+    appendLog("Saved preset: " + filePath);
+    statusBar()->showMessage("Preset saved");
 }
 
 bool MainWindow::loadImageFile(const QString &filePath, bool showError)

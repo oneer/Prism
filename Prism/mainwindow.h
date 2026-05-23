@@ -45,6 +45,8 @@ private:
     void openImage();
     void openProject();
     void saveProject();
+    void loadPreset();
+    void savePreset();
     void exportPreview();
     void resetPreviewParameters();
     void fitPreviewToWindow();

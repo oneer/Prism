@@ -25,6 +25,7 @@
 #include <QResizeEvent>
 #include <QScrollArea>
 #include <QSlider>
+#include <QSizePolicy>
 #include <QStatusBar>
 #include <QTabWidget>
 #include <QtMath>
@@ -63,6 +64,7 @@ void MainWindow::setupWorkbenchUi()
     previewLabel = new QLabel("Image Preview", previewFrame);
     previewLabel->setAlignment(Qt::AlignCenter);
     previewLabel->setMinimumHeight(360);
+    previewLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
     previewLabel->setStyleSheet("QLabel { background: #202124; color: #d0d0d0; border: 1px solid #3a3a3a; }");
     previewScrollArea = new QScrollArea(previewFrame);
     previewScrollArea->setWidget(previewLabel);
@@ -142,6 +144,8 @@ void MainWindow::setupParameterPanel()
 {
     auto *dock = new QDockWidget("Stage Parameters", this);
     dock->setObjectName("StageParametersDock");
+    dock->setMinimumWidth(260);
+    dock->setMaximumWidth(260);
 
     auto *panel = new QWidget(dock);
     auto *layout = new QVBoxLayout(panel);
@@ -516,7 +520,9 @@ void MainWindow::updatePreview()
     }
 
     previewLabel->setPixmap(pixmap);
-    if (!fitPreviewToWindowEnabled) {
+    if (fitPreviewToWindowEnabled) {
+        previewLabel->resize(targetSize);
+    } else {
         previewLabel->resize(pixmap.size());
     }
     updateHistogram(previewImage);

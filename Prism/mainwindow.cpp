@@ -516,7 +516,9 @@ void MainWindow::updatePreview()
     }
 
     previewLabel->setPixmap(pixmap);
-    previewLabel->resize(pixmap.size());
+    if (!fitPreviewToWindowEnabled) {
+        previewLabel->resize(pixmap.size());
+    }
     updateHistogram(previewImage);
 }
 

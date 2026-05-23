@@ -14,6 +14,7 @@ Prism is a Qt Widgets desktop workbench for learning and debugging image pipelin
 - Reset preview parameters.
 - Export the current processed preview as PNG or JPEG.
 - Inspect RGB histogram, image metadata, and log output.
+- RAW file extensions appear in the open dialog, with a clear dependency message when RAW decoding is unavailable.
 
 ## Project Structure
 
@@ -52,7 +53,7 @@ Prism/
 
 ## Notes
 
-The current image operations are preview-only and do not modify the source image. RAW/DNG support is planned for a later step after adding LibRaw.
+The current image operations are preview-only and do not modify the source image. RAW/DNG decoding requires a RAW decoder such as LibRaw; the Qt-only build currently shows a clear message for RAW files that Qt cannot decode.
 
 ## Design Philosophy
 

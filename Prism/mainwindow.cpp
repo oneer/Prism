@@ -4,6 +4,7 @@
 #include <QAction>
 #include <QCheckBox>
 #include <QColor>
+#include <QDateTime>
 #include <QDockWidget>
 #include <QFile>
 #include <QFileDialog>
@@ -545,6 +546,31 @@ void MainWindow::exportPreview()
     }
 
     const QString stageName = stage ? stage->displayName : QString("Preview");
+    const QString reportPath = QFileInfo(filePath).absolutePath() + "/" + QFileInfo(filePath).completeBaseName() + ".json";
+    QJsonObject report;
+    report["version"] = 1;
+    report["exportedAt"] = QDateTime::currentDateTime().toString(Qt::ISODate);
+    report["sourceImagePath"] = currentImagePath;
+    report["sourceImageName"] = currentImageName;
+    report["exportedImagePath"] = filePath;
+    report["stageId"] = stage ? stage->id : QString();
+    report["stageName"] = stageName;
+    report["redGain"] = previewParams.redGain;
+    report["blueGain"] = previewParams.blueGain;
+    report["exposureEv"] = previewParams.exposureEv;
+    report["showOriginal"] = showOriginalPreview;
+    report["splitCompare"] = splitComparePreview;
+    report["fitPreviewToWindow"] = fitPreviewToWindowEnabled;
+    report["zoomScale"] = previewZoomScale;
+
+    QFile reportFile(reportPath);
+    if (reportFile.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        reportFile.write(QJsonDocument(report).toJson(QJsonDocument::Indented));
+        appendLog("Exported parameter report: " + reportPath);
+    } else {
+        appendLog("Failed to export parameter report: " + reportPath);
+    }
+
     appendLog("Exported " + stageName + ": " + filePath);
     statusBar()->showMessage("Preview exported");
 }

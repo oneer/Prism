@@ -18,6 +18,7 @@ public:
 
     const QVector<PipelineStage> &stages() const;
     const PipelineStage *stageAt(int row) const;
+    int indexOfStage(const QString &id) const;
 
 private:
     QVector<PipelineStage> pipelineStages;

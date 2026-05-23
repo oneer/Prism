@@ -29,3 +29,14 @@ const PipelineStage *PipelineModel::stageAt(int row) const
 
     return &pipelineStages[row];
 }
+
+int PipelineModel::indexOfStage(const QString &id) const
+{
+    for (int row = 0; row < pipelineStages.size(); ++row) {
+        if (pipelineStages[row].id == id) {
+            return row;
+        }
+    }
+
+    return -1;
+}

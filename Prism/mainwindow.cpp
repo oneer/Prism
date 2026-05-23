@@ -3,12 +3,16 @@
 
 #include <QAction>
 #include <QDockWidget>
+#include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFormLayout>
 #include <QFrame>
 #include <QGroupBox>
 #include <QImageReader>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonParseError>
 #include <QKeySequence>
 #include <QLabel>
 #include <QListWidget>
@@ -23,6 +27,7 @@
 #include <QSlider>
 #include <QStatusBar>
 #include <QTabWidget>
+#include <QtMath>
 #include <QVBoxLayout>
 
 MainWindow::MainWindow(QWidget *parent)
@@ -82,6 +87,13 @@ void MainWindow::setupMenus()
     auto *openAction = fileMenu->addAction("Open Image...", this, &MainWindow::openImage);
     openAction->setShortcut(QKeySequence::Open);
 
+    auto *openProjectAction = fileMenu->addAction("Open Project...", this, &MainWindow::openProject);
+    openProjectAction->setShortcut(QKeySequence("Ctrl+Shift+O"));
+
+    auto *saveProjectAction = fileMenu->addAction("Save Project...", this, &MainWindow::saveProject);
+    saveProjectAction->setShortcut(QKeySequence::Save);
+
+    fileMenu->addSeparator();
     auto *exportAction = fileMenu->addAction("Export Preview...", this, &MainWindow::exportPreview);
     exportAction->setShortcut(QKeySequence("Ctrl+E"));
 
@@ -242,14 +254,126 @@ void MainWindow::openImage()
         return;
     }
 
+    if (loadImageFile(filePath)) {
+        statusBar()->showMessage("Image loaded");
+    }
+}
+
+void MainWindow::openProject()
+{
+    const QString filePath = QFileDialog::getOpenFileName(
+        this,
+        "Open Project",
+        QString(),
+        "Prism project (*.json);;All files (*.*)");
+
+    if (filePath.isEmpty()) {
+        return;
+    }
+
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly)) {
+        QMessageBox::warning(this, "Open Project", "Could not open project file.");
+        appendLog("Failed to open project: " + filePath);
+        return;
+    }
+
+    QJsonParseError parseError;
+    const QJsonDocument document = QJsonDocument::fromJson(file.readAll(), &parseError);
+    if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
+        QMessageBox::warning(this, "Open Project", "Project file is not valid JSON.");
+        appendLog("Invalid project file: " + filePath);
+        return;
+    }
+
+    const QJsonObject project = document.object();
+    const QString imagePath = project.value("imagePath").toString();
+    if (imagePath.isEmpty() || !loadImageFile(imagePath, false)) {
+        QMessageBox::warning(this, "Open Project", "Project image could not be loaded.");
+        appendLog("Project image could not be loaded: " + imagePath);
+        return;
+    }
+
+    const int stageIndex = pipelineModel.indexOfStage(project.value("activeStage").toString());
+    if (stageIndex >= 0 && stageList) {
+        stageList->setCurrentRow(stageIndex);
+    }
+
+    if (redGainSlider) {
+        redGainSlider->setValue(qRound(project.value("redGain").toDouble(1.0) * 100.0));
+    }
+    if (blueGainSlider) {
+        blueGainSlider->setValue(qRound(project.value("blueGain").toDouble(1.0) * 100.0));
+    }
+    if (exposureSlider) {
+        exposureSlider->setValue(qRound(project.value("exposureEv").toDouble(0.0) * 100.0));
+    }
+
+    if (project.value("fitPreviewToWindow").toBool(true)) {
+        fitPreviewToWindow();
+    } else {
+        showPreviewActualSize();
+    }
+
+    updateStageControls();
+    updatePreview();
+    updateMetadata();
+    appendLog("Opened project: " + filePath);
+    statusBar()->showMessage("Project opened");
+}
+
+void MainWindow::saveProject()
+{
+    if (currentImagePath.isEmpty()) {
+        QMessageBox::information(this, "Save Project", "Open an image before saving a project.");
+        return;
+    }
+
+    const PipelineStage *stage = stageList ? pipelineModel.stageAt(stageList->currentRow()) : nullptr;
+    const QString defaultName = QFileInfo(currentImageName).completeBaseName() + ".prism.json";
+    const QString filePath = QFileDialog::getSaveFileName(
+        this,
+        "Save Project",
+        defaultName,
+        "Prism project (*.json);;All files (*.*)");
+
+    if (filePath.isEmpty()) {
+        return;
+    }
+
+    QJsonObject project;
+    project["version"] = 1;
+    project["imagePath"] = currentImagePath;
+    project["activeStage"] = stage ? stage->id : QString();
+    project["redGain"] = previewParams.redGain;
+    project["blueGain"] = previewParams.blueGain;
+    project["exposureEv"] = previewParams.exposureEv;
+    project["fitPreviewToWindow"] = fitPreviewToWindowEnabled;
+
+    QFile file(filePath);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        QMessageBox::warning(this, "Save Project", "Could not save project file.");
+        appendLog("Failed to save project: " + filePath);
+        return;
+    }
+
+    file.write(QJsonDocument(project).toJson(QJsonDocument::Indented));
+    appendLog("Saved project: " + filePath);
+    statusBar()->showMessage("Project saved");
+}
+
+bool MainWindow::loadImageFile(const QString &filePath, bool showError)
+{
     QImageReader reader(filePath);
     reader.setAutoTransform(true);
 
     QImage image = reader.read();
     if (image.isNull()) {
-        QMessageBox::warning(this, "Open Image", "Could not open image:\n" + reader.errorString());
+        if (showError) {
+            QMessageBox::warning(this, "Open Image", "Could not open image:\n" + reader.errorString());
+        }
         appendLog("Failed to open image: " + filePath);
-        return;
+        return false;
     }
 
     currentImage = image;
@@ -265,7 +389,7 @@ void MainWindow::openImage()
                                 .arg(currentImage.width())
                                 .arg(currentImage.height());
     appendLog(message);
-    statusBar()->showMessage("Image loaded");
+    return true;
 }
 
 void MainWindow::exportPreview()

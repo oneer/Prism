@@ -42,6 +42,8 @@ private:
     void setupParameterPanel();
     void setupBottomPanel();
     void openImage();
+    void openProject();
+    void saveProject();
     void exportPreview();
     void resetPreviewParameters();
     void fitPreviewToWindow();
@@ -52,6 +54,7 @@ private:
     void updateHistogram(const QImage &previewImage);
     void updateMetadata();
     QImage buildPreviewImage() const;
+    bool loadImageFile(const QString &filePath, bool showError = true);
     void appendLog(const QString &message);
 
     Ui::MainWindow *ui;

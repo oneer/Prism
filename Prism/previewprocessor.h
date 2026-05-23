@@ -5,8 +5,11 @@
 
 struct PreviewParams
 {
+    double blackLevel = 0.0;
+    double normalizeScale = 1.0;
     double redGain = 1.0;
     double blueGain = 1.0;
+    double colorSaturation = 1.0;
     double exposureEv = 0.0;
 };
 

@@ -10,14 +10,19 @@ QImage PreviewProcessor::process(const QImage &source, const PreviewParams &para
     }
 
     const bool appliesWhiteBalance = stageIndex >= 4;
+    const bool appliesColorMatrix = stageIndex >= 5;
     const bool appliesExposure = stageIndex >= 6;
     const bool appliesToneMapping = stageIndex >= 7;
     const bool appliesGamma = stageIndex >= 8;
+    const double blackLevel = stageIndex >= 1 ? params.blackLevel : 0.0;
+    const double normalizeScale = stageIndex >= 2 ? params.normalizeScale : 1.0;
     const double redGain = appliesWhiteBalance ? params.redGain : 1.0;
     const double blueGain = appliesWhiteBalance ? params.blueGain : 1.0;
+    const double colorSaturation = appliesColorMatrix ? params.colorSaturation : 1.0;
     const double exposureEv = appliesExposure ? params.exposureEv : 0.0;
 
-    if (exposureEv == 0.0 && redGain == 1.0 && blueGain == 1.0 && !appliesToneMapping && !appliesGamma) {
+    if (blackLevel == 0.0 && normalizeScale == 1.0 && exposureEv == 0.0 && redGain == 1.0
+        && blueGain == 1.0 && colorSaturation == 1.0 && !appliesToneMapping && !appliesGamma) {
         return source;
     }
 
@@ -39,9 +44,20 @@ QImage PreviewProcessor::process(const QImage &source, const PreviewParams &para
         auto *line = reinterpret_cast<QRgb *>(preview.scanLine(y));
         for (int x = 0; x < preview.width(); ++x) {
             const QRgb pixel = line[x];
-            const int red = mapChannel(qRed(pixel) / 255.0 * redGain * exposureScale);
-            const int green = mapChannel(qGreen(pixel) / 255.0 * exposureScale);
-            const int blue = mapChannel(qBlue(pixel) / 255.0 * blueGain * exposureScale);
+            double redValue = std::max(0.0, qRed(pixel) / 255.0 - blackLevel) * normalizeScale * redGain;
+            double greenValue = std::max(0.0, qGreen(pixel) / 255.0 - blackLevel) * normalizeScale;
+            double blueValue = std::max(0.0, qBlue(pixel) / 255.0 - blackLevel) * normalizeScale * blueGain;
+
+            if (appliesColorMatrix) {
+                const double luma = redValue * 0.2126 + greenValue * 0.7152 + blueValue * 0.0722;
+                redValue = luma + (redValue - luma) * colorSaturation;
+                greenValue = luma + (greenValue - luma) * colorSaturation;
+                blueValue = luma + (blueValue - luma) * colorSaturation;
+            }
+
+            const int red = mapChannel(redValue * exposureScale);
+            const int green = mapChannel(greenValue * exposureScale);
+            const int blue = mapChannel(blueValue * exposureScale);
             line[x] = qRgba(red, green, blue, qAlpha(pixel));
         }
     }

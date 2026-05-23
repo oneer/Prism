@@ -163,6 +163,24 @@ void MainWindow::setupParameterPanel()
     stageDescriptionLabel = new QLabel(panel);
     stageDescriptionLabel->setWordWrap(true);
 
+    blackLevelGroup = new QGroupBox("Black Level", panel);
+    auto *blackLevelLayout = new QFormLayout(blackLevelGroup);
+    blackLevelSlider = new QSlider(Qt::Horizontal, blackLevelGroup);
+    blackLevelSlider->setRange(0, 64);
+    blackLevelSlider->setValue(0);
+    blackLevelValueLabel = new QLabel("0", blackLevelGroup);
+    blackLevelLayout->addRow("Offset", blackLevelSlider);
+    blackLevelLayout->addRow("Value", blackLevelValueLabel);
+
+    normalizeGroup = new QGroupBox("Normalize", panel);
+    auto *normalizeLayout = new QFormLayout(normalizeGroup);
+    normalizeSlider = new QSlider(Qt::Horizontal, normalizeGroup);
+    normalizeSlider->setRange(50, 200);
+    normalizeSlider->setValue(100);
+    normalizeValueLabel = new QLabel("1.00x", normalizeGroup);
+    normalizeLayout->addRow("Scale", normalizeSlider);
+    normalizeLayout->addRow("Value", normalizeValueLabel);
+
     whiteBalanceGroup = new QGroupBox("White Balance", panel);
     auto *whiteBalanceLayout = new QFormLayout(whiteBalanceGroup);
     redGainSlider = new QSlider(Qt::Horizontal, whiteBalanceGroup);
@@ -177,6 +195,15 @@ void MainWindow::setupParameterPanel()
     whiteBalanceLayout->addRow("Red value", redGainValueLabel);
     whiteBalanceLayout->addRow("Blue gain", blueGainSlider);
     whiteBalanceLayout->addRow("Blue value", blueGainValueLabel);
+
+    colorMatrixGroup = new QGroupBox("Color Matrix", panel);
+    auto *colorMatrixLayout = new QFormLayout(colorMatrixGroup);
+    colorSaturationSlider = new QSlider(Qt::Horizontal, colorMatrixGroup);
+    colorSaturationSlider->setRange(0, 200);
+    colorSaturationSlider->setValue(100);
+    colorSaturationValueLabel = new QLabel("1.00x", colorMatrixGroup);
+    colorMatrixLayout->addRow("Saturation", colorSaturationSlider);
+    colorMatrixLayout->addRow("Value", colorSaturationValueLabel);
 
     exposureGroup = new QGroupBox("Exposure", panel);
     auto *exposureLayout = new QFormLayout(exposureGroup);
@@ -193,6 +220,20 @@ void MainWindow::setupParameterPanel()
     auto *savePresetButton = new QPushButton("Save Preset", panel);
     auto *resetButton = new QPushButton("Reset Parameters", panel);
     auto *applyButton = new QPushButton("Apply Preview", panel);
+    connect(blackLevelSlider, &QSlider::valueChanged, this, [this](int value) {
+        previewParams.blackLevel = value / 255.0;
+        blackLevelValueLabel->setText(QString::number(value));
+        updatePreview();
+        updateMetadata();
+        statusBar()->showMessage("Black level offset: " + QString::number(value));
+    });
+    connect(normalizeSlider, &QSlider::valueChanged, this, [this](int value) {
+        previewParams.normalizeScale = value / 100.0;
+        normalizeValueLabel->setText(QString::number(previewParams.normalizeScale, 'f', 2) + "x");
+        updatePreview();
+        updateMetadata();
+        statusBar()->showMessage("Normalize scale: " + QString::number(previewParams.normalizeScale, 'f', 2) + "x");
+    });
     connect(redGainSlider, &QSlider::valueChanged, this, [this](int value) {
         previewParams.redGain = value / 100.0;
         redGainValueLabel->setText(QString::number(previewParams.redGain, 'f', 2) + "x");
@@ -206,6 +247,13 @@ void MainWindow::setupParameterPanel()
         updatePreview();
         updateMetadata();
         statusBar()->showMessage("Blue gain preview: " + QString::number(previewParams.blueGain, 'f', 2) + "x");
+    });
+    connect(colorSaturationSlider, &QSlider::valueChanged, this, [this](int value) {
+        previewParams.colorSaturation = value / 100.0;
+        colorSaturationValueLabel->setText(QString::number(previewParams.colorSaturation, 'f', 2) + "x");
+        updatePreview();
+        updateMetadata();
+        statusBar()->showMessage("Color saturation: " + QString::number(previewParams.colorSaturation, 'f', 2) + "x");
     });
     connect(exposureSlider, &QSlider::valueChanged, this, [this](int value) {
         previewParams.exposureEv = value / 100.0;
@@ -239,7 +287,10 @@ void MainWindow::setupParameterPanel()
     layout->addWidget(stageDescriptionLabel);
     layout->addWidget(showOriginalCheckBox);
     layout->addWidget(splitCompareCheckBox);
+    layout->addWidget(blackLevelGroup);
+    layout->addWidget(normalizeGroup);
     layout->addWidget(whiteBalanceGroup);
+    layout->addWidget(colorMatrixGroup);
     layout->addWidget(exposureGroup);
     layout->addStretch();
     layout->addWidget(loadPresetButton);
@@ -247,7 +298,10 @@ void MainWindow::setupParameterPanel()
     layout->addWidget(resetButton);
     layout->addWidget(applyButton);
 
-    dock->setWidget(panel);
+    auto *panelScrollArea = new QScrollArea(dock);
+    panelScrollArea->setWidgetResizable(true);
+    panelScrollArea->setWidget(panel);
+    dock->setWidget(panelScrollArea);
     addDockWidget(Qt::RightDockWidgetArea, dock);
     updateStageControls();
 }
@@ -335,11 +389,20 @@ void MainWindow::openProject()
         stageList->setCurrentRow(stageIndex);
     }
 
+    if (blackLevelSlider) {
+        blackLevelSlider->setValue(qRound(project.value("blackLevel").toDouble(0.0) * 255.0));
+    }
+    if (normalizeSlider) {
+        normalizeSlider->setValue(qRound(project.value("normalizeScale").toDouble(1.0) * 100.0));
+    }
     if (redGainSlider) {
         redGainSlider->setValue(qRound(project.value("redGain").toDouble(1.0) * 100.0));
     }
     if (blueGainSlider) {
         blueGainSlider->setValue(qRound(project.value("blueGain").toDouble(1.0) * 100.0));
+    }
+    if (colorSaturationSlider) {
+        colorSaturationSlider->setValue(qRound(project.value("colorSaturation").toDouble(1.0) * 100.0));
     }
     if (exposureSlider) {
         exposureSlider->setValue(qRound(project.value("exposureEv").toDouble(0.0) * 100.0));
@@ -387,8 +450,11 @@ void MainWindow::saveProject()
     project["version"] = 1;
     project["imagePath"] = currentImagePath;
     project["activeStage"] = stage ? stage->id : QString();
+    project["blackLevel"] = previewParams.blackLevel;
+    project["normalizeScale"] = previewParams.normalizeScale;
     project["redGain"] = previewParams.redGain;
     project["blueGain"] = previewParams.blueGain;
+    project["colorSaturation"] = previewParams.colorSaturation;
     project["exposureEv"] = previewParams.exposureEv;
     project["fitPreviewToWindow"] = fitPreviewToWindowEnabled;
     project["showOriginal"] = showOriginalPreview;
@@ -435,11 +501,20 @@ void MainWindow::loadPreset()
     }
 
     const QJsonObject preset = document.object();
+    if (blackLevelSlider) {
+        blackLevelSlider->setValue(qRound(preset.value("blackLevel").toDouble(0.0) * 255.0));
+    }
+    if (normalizeSlider) {
+        normalizeSlider->setValue(qRound(preset.value("normalizeScale").toDouble(1.0) * 100.0));
+    }
     if (redGainSlider) {
         redGainSlider->setValue(qRound(preset.value("redGain").toDouble(1.0) * 100.0));
     }
     if (blueGainSlider) {
         blueGainSlider->setValue(qRound(preset.value("blueGain").toDouble(1.0) * 100.0));
+    }
+    if (colorSaturationSlider) {
+        colorSaturationSlider->setValue(qRound(preset.value("colorSaturation").toDouble(1.0) * 100.0));
     }
     if (exposureSlider) {
         exposureSlider->setValue(qRound(preset.value("exposureEv").toDouble(0.0) * 100.0));
@@ -471,8 +546,11 @@ void MainWindow::savePreset()
 
     QJsonObject preset;
     preset["version"] = 1;
+    preset["blackLevel"] = previewParams.blackLevel;
+    preset["normalizeScale"] = previewParams.normalizeScale;
     preset["redGain"] = previewParams.redGain;
     preset["blueGain"] = previewParams.blueGain;
+    preset["colorSaturation"] = previewParams.colorSaturation;
     preset["exposureEv"] = previewParams.exposureEv;
     preset["showOriginal"] = showOriginalPreview;
     preset["splitCompare"] = splitComparePreview;
@@ -555,8 +633,11 @@ void MainWindow::exportPreview()
     report["exportedImagePath"] = filePath;
     report["stageId"] = stage ? stage->id : QString();
     report["stageName"] = stageName;
+    report["blackLevel"] = previewParams.blackLevel;
+    report["normalizeScale"] = previewParams.normalizeScale;
     report["redGain"] = previewParams.redGain;
     report["blueGain"] = previewParams.blueGain;
+    report["colorSaturation"] = previewParams.colorSaturation;
     report["exposureEv"] = previewParams.exposureEv;
     report["showOriginal"] = showOriginalPreview;
     report["splitCompare"] = splitComparePreview;
@@ -577,11 +658,20 @@ void MainWindow::exportPreview()
 
 void MainWindow::resetPreviewParameters()
 {
+    if (blackLevelSlider) {
+        blackLevelSlider->setValue(0);
+    }
+    if (normalizeSlider) {
+        normalizeSlider->setValue(100);
+    }
     if (redGainSlider) {
         redGainSlider->setValue(100);
     }
     if (blueGainSlider) {
         blueGainSlider->setValue(100);
+    }
+    if (colorSaturationSlider) {
+        colorSaturationSlider->setValue(100);
     }
     if (exposureSlider) {
         exposureSlider->setValue(0);
@@ -654,8 +744,17 @@ void MainWindow::updateStageControls()
             stageDescriptionLabel->setText(QString());
         }
     }
+    if (blackLevelGroup) {
+        blackLevelGroup->setEnabled(stageIndex >= 1);
+    }
+    if (normalizeGroup) {
+        normalizeGroup->setEnabled(stageIndex >= 2);
+    }
     if (whiteBalanceGroup) {
         whiteBalanceGroup->setEnabled(stageIndex >= 4);
+    }
+    if (colorMatrixGroup) {
+        colorMatrixGroup->setEnabled(stageIndex >= 5);
     }
     if (exposureGroup) {
         exposureGroup->setEnabled(stageIndex >= 6);
@@ -724,7 +823,10 @@ void MainWindow::updateMetadata()
     const PipelineStage *stage = stageList ? pipelineModel.stageAt(stageList->currentRow()) : nullptr;
     const QString stageName = stage ? stage->displayName : "None";
     const int stageIndex = stageList ? stageList->currentRow() : 0;
+    const QString blackLevelState = stageIndex >= 1 ? "Applied" : "Pending";
+    const QString normalizeState = stageIndex >= 2 ? "Applied" : "Pending";
     const QString whiteBalanceState = stageIndex >= 4 ? "Applied" : "Pending";
+    const QString colorMatrixState = stageIndex >= 5 ? "Applied" : "Pending";
     const QString exposureState = stageIndex >= 6 ? "Applied" : "Pending";
     const QString toneMappingState = stageIndex >= 7 ? "Applied" : "Pending";
     const QString gammaState = stageIndex >= 8 ? "Applied" : "Pending";
@@ -744,15 +846,21 @@ void MainWindow::updateMetadata()
         "  Memory: %9 MiB\n\n"
         "Preview\n"
         "  Active stage: %10\n"
-        "  Red gain: %11x\n"
-        "  Blue gain: %12x\n"
-        "  Exposure EV: %13\n"
-        "  Showing original: %14\n"
-        "  Split compare: %15\n"
-        "  White balance: %16\n"
-        "  Exposure: %17\n"
-        "  Tone mapping: %18\n"
-        "  Gamma: %19\n")
+        "  Black level: %11\n"
+        "  Normalize scale: %12x\n"
+        "  Red gain: %13x\n"
+        "  Blue gain: %14x\n"
+        "  Color saturation: %15x\n"
+        "  Exposure EV: %16\n"
+        "  Showing original: %17\n"
+        "  Split compare: %18\n"
+        "  Black level stage: %19\n"
+        "  Normalize: %20\n"
+        "  White balance: %21\n"
+        "  Color matrix: %22\n"
+        "  Exposure: %23\n"
+        "  Tone mapping: %24\n"
+        "  Gamma: %25\n")
                              .arg(currentImageName)
                              .arg(currentImagePath)
                              .arg(currentImageFormat.isEmpty() ? "Unknown" : currentImageFormat)
@@ -763,12 +871,18 @@ void MainWindow::updateMetadata()
                              .arg(currentImage.hasAlphaChannel() ? "Yes" : "No")
                              .arg(memoryMiB, 0, 'f', 2)
                              .arg(stageName)
+                             .arg(previewParams.blackLevel * 255.0, 0, 'f', 0)
+                             .arg(previewParams.normalizeScale, 0, 'f', 2)
                              .arg(previewParams.redGain, 0, 'f', 2)
                              .arg(previewParams.blueGain, 0, 'f', 2)
+                             .arg(previewParams.colorSaturation, 0, 'f', 2)
                              .arg(previewParams.exposureEv, 0, 'f', 2)
                              .arg(showOriginalPreview ? "Yes" : "No")
                              .arg(splitComparePreview ? "Yes" : "No")
+                             .arg(blackLevelState)
+                             .arg(normalizeState)
                              .arg(whiteBalanceState)
+                             .arg(colorMatrixState)
                              .arg(exposureState)
                              .arg(toneMappingState)
                              .arg(gammaState);

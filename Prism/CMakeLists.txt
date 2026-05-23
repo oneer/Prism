@@ -12,6 +12,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets)
 
+option(PRISM_USE_LIBRAW "Enable RAW decoding through LibRaw when available" ON)
+if(PRISM_USE_LIBRAW)
+    find_path(LIBRAW_INCLUDE_DIR libraw/libraw.h)
+    find_library(LIBRAW_LIBRARY NAMES raw libraw libraw_r)
+endif()
+
 set(PROJECT_SOURCES
         main.cpp
         histogramrenderer.cpp
@@ -51,6 +57,15 @@ else()
 endif()
 
 target_link_libraries(Prism PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
+
+if(PRISM_USE_LIBRAW AND LIBRAW_INCLUDE_DIR AND LIBRAW_LIBRARY)
+    target_compile_definitions(Prism PRIVATE PRISM_HAS_LIBRAW)
+    target_include_directories(Prism PRIVATE ${LIBRAW_INCLUDE_DIR})
+    target_link_libraries(Prism PRIVATE ${LIBRAW_LIBRARY})
+    message(STATUS "LibRaw enabled: ${LIBRAW_LIBRARY}")
+else()
+    message(STATUS "LibRaw not found; RAW files will show the Qt-only guidance message.")
+endif()
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
 # If you are developing for iOS or macOS you should consider setting an

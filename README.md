@@ -54,16 +54,16 @@ Prism/
 
 ## Notes
 
-The current image operations are preview-only and do not modify the source image. RAW/DNG decoding requires a RAW decoder such as LibRaw; the Qt-only build currently shows a clear message for RAW files that Qt cannot decode.
+The current image operations are preview-only and do not modify the source image. RAW/DNG decoding uses LibRaw when CMake can find a compatible LibRaw installation. Without LibRaw, the Qt-only build shows a clear message for RAW files.
 
 ## Preparing Real RAW Support
 
-The project now has a dedicated `RawLoader` interface. To turn RAW files into real images later:
+The project has a dedicated `RawLoader` interface. To enable real RAW decoding:
 
 1. Install a MinGW-compatible LibRaw build that matches the Qt kit.
-2. Add LibRaw include and library paths to `Prism/CMakeLists.txt`.
-3. Replace the placeholder implementation in `Prism/rawloader.cpp` with LibRaw decoding.
-4. Copy the required LibRaw runtime DLL next to the built Prism executable.
+2. Configure the project again in Qt Creator so CMake can find `libraw/libraw.h` and the LibRaw library.
+3. Confirm the CMake output says `LibRaw enabled`.
+4. Copy the required LibRaw runtime DLL next to the built Prism executable if your LibRaw build is dynamic.
 
 Keep the compiler family consistent. For `Desktop Qt ... MinGW 64-bit`, use MinGW-built LibRaw libraries rather than MSVC libraries.
 

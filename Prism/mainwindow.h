@@ -13,6 +13,7 @@ class QLabel;
 class QListWidget;
 class QListWidgetItem;
 class QPlainTextEdit;
+class QCheckBox;
 class QGroupBox;
 class QResizeEvent;
 class QScrollArea;
@@ -55,7 +56,7 @@ private:
     void updatePreview();
     void updateHistogram(const QImage &previewImage);
     void updateMetadata();
-    QImage buildPreviewImage() const;
+    QImage buildPreviewImage(bool allowOriginalBypass = true) const;
     bool loadImageFile(const QString &filePath, bool showError = true);
     void setPreviewZoom(double scale);
     void showPreviewZoomStatus();
@@ -70,6 +71,7 @@ private:
     QLabel *redGainValueLabel = nullptr;
     QLabel *blueGainValueLabel = nullptr;
     QLabel *stageDescriptionLabel = nullptr;
+    QCheckBox *showOriginalCheckBox = nullptr;
     QGroupBox *whiteBalanceGroup = nullptr;
     QGroupBox *exposureGroup = nullptr;
     QPlainTextEdit *metadataView = nullptr;
@@ -87,6 +89,7 @@ private:
     PreviewParams previewParams;
     PreviewProcessor previewProcessor;
     bool fitPreviewToWindowEnabled = true;
+    bool showOriginalPreview = false;
     double previewZoomScale = 1.0;
 };
 #endif // MAINWINDOW_H

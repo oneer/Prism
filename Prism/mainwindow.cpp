@@ -2,6 +2,7 @@
 #include "./ui_mainwindow.h"
 
 #include <QAction>
+#include <QCheckBox>
 #include <QDockWidget>
 #include <QFile>
 #include <QFileDialog>
@@ -183,6 +184,7 @@ void MainWindow::setupParameterPanel()
     exposureLayout->addRow("EV", exposureSlider);
     exposureLayout->addRow("Value", exposureValueLabel);
 
+    showOriginalCheckBox = new QCheckBox("Show Original", panel);
     auto *resetButton = new QPushButton("Reset Parameters", panel);
     auto *applyButton = new QPushButton("Apply Preview", panel);
     connect(redGainSlider, &QSlider::valueChanged, this, [this](int value) {
@@ -212,9 +214,16 @@ void MainWindow::setupParameterPanel()
                       .arg(previewParams.blueGain, 0, 'f', 2)
                       .arg(previewParams.exposureEv, 0, 'f', 2));
     });
+    connect(showOriginalCheckBox, &QCheckBox::toggled, this, [this](bool checked) {
+        showOriginalPreview = checked;
+        updatePreview();
+        updateMetadata();
+        statusBar()->showMessage(checked ? "Showing original image" : "Showing pipeline preview");
+    });
     connect(resetButton, &QPushButton::clicked, this, &MainWindow::resetPreviewParameters);
 
     layout->addWidget(stageDescriptionLabel);
+    layout->addWidget(showOriginalCheckBox);
     layout->addWidget(whiteBalanceGroup);
     layout->addWidget(exposureGroup);
     layout->addStretch();
@@ -318,6 +327,9 @@ void MainWindow::openProject()
     if (exposureSlider) {
         exposureSlider->setValue(qRound(project.value("exposureEv").toDouble(0.0) * 100.0));
     }
+    if (showOriginalCheckBox) {
+        showOriginalCheckBox->setChecked(project.value("showOriginal").toBool(false));
+    }
 
     if (project.value("fitPreviewToWindow").toBool(true)) {
         fitPreviewToWindow();
@@ -359,6 +371,7 @@ void MainWindow::saveProject()
     project["blueGain"] = previewParams.blueGain;
     project["exposureEv"] = previewParams.exposureEv;
     project["fitPreviewToWindow"] = fitPreviewToWindowEnabled;
+    project["showOriginal"] = showOriginalPreview;
     project["zoomScale"] = previewZoomScale;
 
     QFile file(filePath);
@@ -422,7 +435,7 @@ void MainWindow::exportPreview()
         return;
     }
 
-    const QImage preview = buildPreviewImage();
+    const QImage preview = buildPreviewImage(false);
     if (!preview.save(filePath)) {
         QMessageBox::warning(this, "Export Preview", "Could not save preview image.");
         appendLog("Failed to export preview: " + filePath);
@@ -594,10 +607,11 @@ void MainWindow::updateMetadata()
         "  Red gain: %11x\n"
         "  Blue gain: %12x\n"
         "  Exposure EV: %13\n"
-        "  White balance: %14\n"
-        "  Exposure: %15\n"
-        "  Tone mapping: %16\n"
-        "  Gamma: %17\n")
+        "  Showing original: %14\n"
+        "  White balance: %15\n"
+        "  Exposure: %16\n"
+        "  Tone mapping: %17\n"
+        "  Gamma: %18\n")
                              .arg(currentImageName)
                              .arg(currentImagePath)
                              .arg(currentImageFormat.isEmpty() ? "Unknown" : currentImageFormat)
@@ -611,6 +625,7 @@ void MainWindow::updateMetadata()
                              .arg(previewParams.redGain, 0, 'f', 2)
                              .arg(previewParams.blueGain, 0, 'f', 2)
                              .arg(previewParams.exposureEv, 0, 'f', 2)
+                             .arg(showOriginalPreview ? "Yes" : "No")
                              .arg(whiteBalanceState)
                              .arg(exposureState)
                              .arg(toneMappingState)
@@ -619,8 +634,12 @@ void MainWindow::updateMetadata()
     metadataView->setPlainText(text);
 }
 
-QImage MainWindow::buildPreviewImage() const
+QImage MainWindow::buildPreviewImage(bool allowOriginalBypass) const
 {
+    if (allowOriginalBypass && showOriginalPreview) {
+        return currentImage;
+    }
+
     const int stageIndex = stageList ? stageList->currentRow() : 0;
     return previewProcessor.process(currentImage, previewParams, stageIndex);
 }

@@ -2,6 +2,7 @@
 
 #include <QColor>
 #include <QPainter>
+#include <QString>
 
 #include <algorithm>
 #include <array>
@@ -26,6 +27,9 @@ QPixmap HistogramRenderer::renderRgbHistogram(const QImage &source) const
     const int sampleStep = std::max(1, image.width() * image.height() / 250000);
 
     int sampleIndex = 0;
+    int sampledPixels = 0;
+    int clippedShadowPixels = 0;
+    int clippedHighlightPixels = 0;
     for (int y = 0; y < image.height(); ++y) {
         const auto *line = reinterpret_cast<const QRgb *>(image.constScanLine(y));
         for (int x = 0; x < image.width(); ++x) {
@@ -34,9 +38,19 @@ QPixmap HistogramRenderer::renderRgbHistogram(const QImage &source) const
             }
 
             const QRgb pixel = line[x];
-            ++redBins[qRed(pixel)];
-            ++greenBins[qGreen(pixel)];
-            ++blueBins[qBlue(pixel)];
+            const int red = qRed(pixel);
+            const int green = qGreen(pixel);
+            const int blue = qBlue(pixel);
+            ++redBins[red];
+            ++greenBins[green];
+            ++blueBins[blue];
+            ++sampledPixels;
+            if (red == 0 || green == 0 || blue == 0) {
+                ++clippedShadowPixels;
+            }
+            if (red == 255 || green == 255 || blue == 255) {
+                ++clippedHighlightPixels;
+            }
         }
     }
 
@@ -71,6 +85,16 @@ QPixmap HistogramRenderer::renderRgbHistogram(const QImage &source) const
 
     painter.setPen(QColor("#d0d0d0"));
     painter.drawText(8, histogramHeight - 5, "RGB histogram");
+    if (sampledPixels > 0) {
+        const double shadowPercent = clippedShadowPixels * 100.0 / sampledPixels;
+        const double highlightPercent = clippedHighlightPixels * 100.0 / sampledPixels;
+        painter.drawText(
+            150,
+            histogramHeight - 5,
+            QString("Shadow clip %1%   Highlight clip %2%")
+                .arg(shadowPercent, 0, 'f', 2)
+                .arg(highlightPercent, 0, 'f', 2));
+    }
 
     return histogram;
 }

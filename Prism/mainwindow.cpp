@@ -110,6 +110,12 @@ void MainWindow::setupMenus()
     auto *actualSizeAction = viewMenu->addAction("Actual Size", this, &MainWindow::showPreviewActualSize);
     actualSizeAction->setShortcut(QKeySequence("Ctrl+1"));
 
+    auto *zoomInAction = viewMenu->addAction("Zoom In", this, &MainWindow::zoomPreviewIn);
+    zoomInAction->setShortcuts(QKeySequence::ZoomIn);
+
+    auto *zoomOutAction = viewMenu->addAction("Zoom Out", this, &MainWindow::zoomPreviewOut);
+    zoomOutAction->setShortcuts(QKeySequence::ZoomOut);
+
     auto *helpMenu = menuBar()->addMenu("&Help");
     helpMenu->addAction("About Prism", this, [this]() {
         QMessageBox::about(
@@ -316,7 +322,7 @@ void MainWindow::openProject()
     if (project.value("fitPreviewToWindow").toBool(true)) {
         fitPreviewToWindow();
     } else {
-        showPreviewActualSize();
+        setPreviewZoom(project.value("zoomScale").toDouble(1.0));
     }
 
     updateStageControls();
@@ -353,6 +359,7 @@ void MainWindow::saveProject()
     project["blueGain"] = previewParams.blueGain;
     project["exposureEv"] = previewParams.exposureEv;
     project["fitPreviewToWindow"] = fitPreviewToWindowEnabled;
+    project["zoomScale"] = previewZoomScale;
 
     QFile file(filePath);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
@@ -450,17 +457,22 @@ void MainWindow::fitPreviewToWindow()
         previewScrollArea->setWidgetResizable(true);
     }
     updatePreview();
-    statusBar()->showMessage("Fit preview to window");
+    showPreviewZoomStatus();
 }
 
 void MainWindow::showPreviewActualSize()
 {
-    fitPreviewToWindowEnabled = false;
-    if (previewScrollArea) {
-        previewScrollArea->setWidgetResizable(false);
-    }
-    updatePreview();
-    statusBar()->showMessage("Preview at actual size");
+    setPreviewZoom(1.0);
+}
+
+void MainWindow::zoomPreviewIn()
+{
+    setPreviewZoom(previewZoomScale * 1.25);
+}
+
+void MainWindow::zoomPreviewOut()
+{
+    setPreviewZoom(previewZoomScale / 1.25);
 }
 
 void MainWindow::selectStage(QListWidgetItem *item)
@@ -515,6 +527,14 @@ void MainWindow::updatePreview()
     if (fitPreviewToWindowEnabled) {
         pixmap = pixmap.scaled(
             targetSize,
+            Qt::KeepAspectRatio,
+            Qt::SmoothTransformation);
+    } else if (!qFuzzyCompare(previewZoomScale, 1.0)) {
+        const QSize zoomedSize(
+            qRound(previewImage.width() * previewZoomScale),
+            qRound(previewImage.height() * previewZoomScale));
+        pixmap = pixmap.scaled(
+            zoomedSize,
             Qt::KeepAspectRatio,
             Qt::SmoothTransformation);
     }
@@ -603,6 +623,27 @@ QImage MainWindow::buildPreviewImage() const
 {
     const int stageIndex = stageList ? stageList->currentRow() : 0;
     return previewProcessor.process(currentImage, previewParams, stageIndex);
+}
+
+void MainWindow::setPreviewZoom(double scale)
+{
+    fitPreviewToWindowEnabled = false;
+    previewZoomScale = qBound(0.25, scale, 4.0);
+    if (previewScrollArea) {
+        previewScrollArea->setWidgetResizable(false);
+    }
+    updatePreview();
+    showPreviewZoomStatus();
+}
+
+void MainWindow::showPreviewZoomStatus()
+{
+    if (fitPreviewToWindowEnabled) {
+        statusBar()->showMessage("Preview zoom: Fit to Window");
+        return;
+    }
+
+    statusBar()->showMessage("Preview zoom: " + QString::number(previewZoomScale * 100.0, 'f', 0) + "%");
 }
 
 void MainWindow::appendLog(const QString &message)

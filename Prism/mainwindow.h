@@ -48,6 +48,8 @@ private:
     void resetPreviewParameters();
     void fitPreviewToWindow();
     void showPreviewActualSize();
+    void zoomPreviewIn();
+    void zoomPreviewOut();
     void selectStage(QListWidgetItem *item);
     void updateStageControls();
     void updatePreview();
@@ -55,6 +57,8 @@ private:
     void updateMetadata();
     QImage buildPreviewImage() const;
     bool loadImageFile(const QString &filePath, bool showError = true);
+    void setPreviewZoom(double scale);
+    void showPreviewZoomStatus();
     void appendLog(const QString &message);
 
     Ui::MainWindow *ui;
@@ -83,5 +87,6 @@ private:
     PreviewParams previewParams;
     PreviewProcessor previewProcessor;
     bool fitPreviewToWindowEnabled = true;
+    double previewZoomScale = 1.0;
 };
 #endif // MAINWINDOW_H

@@ -3,6 +3,7 @@
 
 #include <QAction>
 #include <QCheckBox>
+#include <QColor>
 #include <QDockWidget>
 #include <QFile>
 #include <QFileDialog>
@@ -20,6 +21,7 @@
 #include <QMenu>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QPainter>
 #include <QPlainTextEdit>
 #include <QPixmap>
 #include <QPushButton>
@@ -185,6 +187,7 @@ void MainWindow::setupParameterPanel()
     exposureLayout->addRow("Value", exposureValueLabel);
 
     showOriginalCheckBox = new QCheckBox("Show Original", panel);
+    splitCompareCheckBox = new QCheckBox("Split Compare", panel);
     auto *resetButton = new QPushButton("Reset Parameters", panel);
     auto *applyButton = new QPushButton("Apply Preview", panel);
     connect(redGainSlider, &QSlider::valueChanged, this, [this](int value) {
@@ -220,10 +223,17 @@ void MainWindow::setupParameterPanel()
         updateMetadata();
         statusBar()->showMessage(checked ? "Showing original image" : "Showing pipeline preview");
     });
+    connect(splitCompareCheckBox, &QCheckBox::toggled, this, [this](bool checked) {
+        splitComparePreview = checked;
+        updatePreview();
+        updateMetadata();
+        statusBar()->showMessage(checked ? "Showing split compare" : "Showing single preview");
+    });
     connect(resetButton, &QPushButton::clicked, this, &MainWindow::resetPreviewParameters);
 
     layout->addWidget(stageDescriptionLabel);
     layout->addWidget(showOriginalCheckBox);
+    layout->addWidget(splitCompareCheckBox);
     layout->addWidget(whiteBalanceGroup);
     layout->addWidget(exposureGroup);
     layout->addStretch();
@@ -330,6 +340,9 @@ void MainWindow::openProject()
     if (showOriginalCheckBox) {
         showOriginalCheckBox->setChecked(project.value("showOriginal").toBool(false));
     }
+    if (splitCompareCheckBox) {
+        splitCompareCheckBox->setChecked(project.value("splitCompare").toBool(false));
+    }
 
     if (project.value("fitPreviewToWindow").toBool(true)) {
         fitPreviewToWindow();
@@ -372,6 +385,7 @@ void MainWindow::saveProject()
     project["exposureEv"] = previewParams.exposureEv;
     project["fitPreviewToWindow"] = fitPreviewToWindowEnabled;
     project["showOriginal"] = showOriginalPreview;
+    project["splitCompare"] = splitComparePreview;
     project["zoomScale"] = previewZoomScale;
 
     QFile file(filePath);
@@ -620,10 +634,11 @@ void MainWindow::updateMetadata()
         "  Blue gain: %12x\n"
         "  Exposure EV: %13\n"
         "  Showing original: %14\n"
-        "  White balance: %15\n"
-        "  Exposure: %16\n"
-        "  Tone mapping: %17\n"
-        "  Gamma: %18\n")
+        "  Split compare: %15\n"
+        "  White balance: %16\n"
+        "  Exposure: %17\n"
+        "  Tone mapping: %18\n"
+        "  Gamma: %19\n")
                              .arg(currentImageName)
                              .arg(currentImagePath)
                              .arg(currentImageFormat.isEmpty() ? "Unknown" : currentImageFormat)
@@ -638,6 +653,7 @@ void MainWindow::updateMetadata()
                              .arg(previewParams.blueGain, 0, 'f', 2)
                              .arg(previewParams.exposureEv, 0, 'f', 2)
                              .arg(showOriginalPreview ? "Yes" : "No")
+                             .arg(splitComparePreview ? "Yes" : "No")
                              .arg(whiteBalanceState)
                              .arg(exposureState)
                              .arg(toneMappingState)
@@ -648,12 +664,41 @@ void MainWindow::updateMetadata()
 
 QImage MainWindow::buildPreviewImage(bool allowOriginalBypass) const
 {
+    if (allowOriginalBypass && splitComparePreview) {
+        return buildSplitPreviewImage();
+    }
+
     if (allowOriginalBypass && showOriginalPreview) {
         return currentImage;
     }
 
     const int stageIndex = stageList ? stageList->currentRow() : 0;
     return previewProcessor.process(currentImage, previewParams, stageIndex);
+}
+
+QImage MainWindow::buildSplitPreviewImage() const
+{
+    const int stageIndex = stageList ? stageList->currentRow() : 0;
+    const QImage original = currentImage.convertToFormat(QImage::Format_ARGB32);
+    const QImage processed = previewProcessor.process(currentImage, previewParams, stageIndex).convertToFormat(QImage::Format_ARGB32);
+    if (original.isNull() || processed.isNull()) {
+        return currentImage;
+    }
+
+    const int labelHeight = 28;
+    QImage splitImage(original.width() * 2, original.height() + labelHeight, QImage::Format_ARGB32);
+    splitImage.fill(QColor(32, 33, 36));
+
+    QPainter painter(&splitImage);
+    painter.drawImage(0, labelHeight, original);
+    painter.drawImage(original.width(), labelHeight, processed);
+    painter.fillRect(original.width() - 1, 0, 2, splitImage.height(), QColor(220, 220, 220));
+    painter.setPen(Qt::white);
+    painter.drawText(QRect(0, 0, original.width(), labelHeight), Qt::AlignCenter, "Original");
+    painter.drawText(QRect(original.width(), 0, processed.width(), labelHeight), Qt::AlignCenter, "Pipeline");
+    painter.end();
+
+    return splitImage;
 }
 
 void MainWindow::setPreviewZoom(double scale)

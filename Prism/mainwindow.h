@@ -57,6 +57,7 @@ private:
     void updateHistogram(const QImage &previewImage);
     void updateMetadata();
     QImage buildPreviewImage(bool allowOriginalBypass = true) const;
+    QImage buildSplitPreviewImage() const;
     bool loadImageFile(const QString &filePath, bool showError = true);
     void setPreviewZoom(double scale);
     void showPreviewZoomStatus();
@@ -72,6 +73,7 @@ private:
     QLabel *blueGainValueLabel = nullptr;
     QLabel *stageDescriptionLabel = nullptr;
     QCheckBox *showOriginalCheckBox = nullptr;
+    QCheckBox *splitCompareCheckBox = nullptr;
     QGroupBox *whiteBalanceGroup = nullptr;
     QGroupBox *exposureGroup = nullptr;
     QPlainTextEdit *metadataView = nullptr;
@@ -90,6 +92,7 @@ private:
     PreviewProcessor previewProcessor;
     bool fitPreviewToWindowEnabled = true;
     bool showOriginalPreview = false;
+    bool splitComparePreview = false;
     double previewZoomScale = 1.0;
 };
 #endif // MAINWINDOW_H

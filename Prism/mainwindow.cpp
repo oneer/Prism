@@ -31,7 +31,6 @@
 #include <QSlider>
 #include <QSizePolicy>
 #include <QStatusBar>
-#include <QStringList>
 #include <QTabWidget>
 #include <QtMath>
 #include <QVBoxLayout>
@@ -570,19 +569,34 @@ void MainWindow::savePreset()
 
 bool MainWindow::loadImageFile(const QString &filePath, bool showError)
 {
+    if (RawLoader::isRawFile(filePath)) {
+        const RawLoadResult rawResult = rawLoader.load(filePath);
+        if (!rawResult.image.isNull()) {
+            currentImage = rawResult.image;
+            currentImageName = QFileInfo(filePath).fileName();
+            currentImagePath = filePath;
+            currentImageFormat = rawResult.formatName;
+            stageLabel->setText(currentImageName);
+            updatePreview();
+            updateMetadata();
+            appendLog("Loaded RAW image: " + filePath);
+            return true;
+        }
+
+        if (showError) {
+            QMessageBox::warning(this, "Open RAW Image", rawResult.errorMessage);
+        }
+        appendLog("RAW decoder unavailable: " + filePath);
+        return false;
+    }
+
     QImageReader reader(filePath);
     reader.setAutoTransform(true);
 
     QImage image = reader.read();
     if (image.isNull()) {
         if (showError) {
-            const QString suffix = QFileInfo(filePath).suffix().toLower();
-            const bool isRawFile = QStringList({"dng", "raw", "nef", "cr2", "cr3", "arw"}).contains(suffix);
-            const QString message = isRawFile
-                                        ? "RAW decoding is not available in this Qt-only build yet.\n\n"
-                                          "Convert the file to TIFF/PNG first, or add a RAW decoder such as LibRaw."
-                                        : "Could not open image:\n" + reader.errorString();
-            QMessageBox::warning(this, "Open Image", message);
+            QMessageBox::warning(this, "Open Image", "Could not open image:\n" + reader.errorString());
         }
         appendLog("Failed to open image: " + filePath);
         return false;

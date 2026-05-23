@@ -8,6 +8,7 @@
 #include "histogramrenderer.h"
 #include "pipelinemodel.h"
 #include "previewprocessor.h"
+#include "rawloader.h"
 
 class QLabel;
 class QListWidget;
@@ -101,6 +102,7 @@ private:
     PipelineModel pipelineModel;
     PreviewParams previewParams;
     PreviewProcessor previewProcessor;
+    RawLoader rawLoader;
     bool fitPreviewToWindowEnabled = true;
     bool showOriginalPreview = false;
     bool splitComparePreview = false;

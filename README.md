@@ -15,6 +15,7 @@ Prism is a Qt Widgets desktop workbench for learning and debugging image pipelin
 - Export the current processed preview as PNG or JPEG.
 - Inspect RGB histogram, image metadata, and log output.
 - RAW file extensions appear in the open dialog, with a clear dependency message when RAW decoding is unavailable.
+- RAW loading is isolated behind `rawloader.h/.cpp` so LibRaw can be connected without touching the main window workflow.
 
 ## Project Structure
 
@@ -54,6 +55,17 @@ Prism/
 ## Notes
 
 The current image operations are preview-only and do not modify the source image. RAW/DNG decoding requires a RAW decoder such as LibRaw; the Qt-only build currently shows a clear message for RAW files that Qt cannot decode.
+
+## Preparing Real RAW Support
+
+The project now has a dedicated `RawLoader` interface. To turn RAW files into real images later:
+
+1. Install a MinGW-compatible LibRaw build that matches the Qt kit.
+2. Add LibRaw include and library paths to `Prism/CMakeLists.txt`.
+3. Replace the placeholder implementation in `Prism/rawloader.cpp` with LibRaw decoding.
+4. Copy the required LibRaw runtime DLL next to the built Prism executable.
+
+Keep the compiler family consistent. For `Desktop Qt ... MinGW 64-bit`, use MinGW-built LibRaw libraries rather than MSVC libraries.
 
 ## Design Philosophy
 

@@ -23,6 +23,8 @@ set(PROJECT_SOURCES
         pipelinemodel.h
         previewprocessor.cpp
         previewprocessor.h
+        rawloader.cpp
+        rawloader.h
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
